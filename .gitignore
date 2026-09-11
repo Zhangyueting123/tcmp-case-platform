@@ -29,3 +29,4 @@ Thumbs.db
 
 # Deploy artifacts (local only)
 deploy/windows/fe_build.log
+/tcmp-*.zip
