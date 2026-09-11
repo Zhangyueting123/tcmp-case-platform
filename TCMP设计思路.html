@@ -1,0 +1,324 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>TCMP 用户手册</title><style>
+    body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;max-width:900px;margin:0 auto;padding:32px;color:#222;line-height:1.7;}
+    h1{font-size:26px;border-bottom:3px solid #4c8bf5;padding-bottom:8px;}
+    h2{font-size:20px;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:32px;}
+    h3{font-size:16px;margin-top:24px;}
+    table{border-collapse:collapse;width:100%;margin:12px 0;}
+    th,td{border:1px solid #ccc;padding:6px 10px;font-size:14px;text-align:left;}
+    th{background:#f0f4ff;}
+    img{max-width:100%;border:1px solid #e0e0e0;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin:8px 0;}
+    code{background:#f5f5f5;color:#c7254e;padding:2px 5px;border-radius:3px;font-family:Consolas,monospace;font-size:90%;}
+    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto;}
+    pre code{background:none;color:#333;}
+    blockquote{border-left:4px solid #4c8bf5;background:#f8faff;margin:8px 0;padding:8px 14px;color:#555;}
+    a{color:#4c8bf5;}
+    </style></head><body><h1 id="tcmp">TCMP 用例管理与执行平台 · 设计思路</h1>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文档名称</td>
+<td>TCMP 平台设计思路（Design Overview）</td>
+</tr>
+<tr>
+<td>版本</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td>编写日期</td>
+<td>2026-07-06</td>
+</tr>
+<tr>
+<td>关联文档</td>
+<td>用例管理和执行系统需求规格书.md、README.md</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. 平台定位</h2>
+<p>TCMP（Test Case Management &amp; Execution Platform）解决公司当前测试工作的三个核心痛点：</p>
+<ul>
+<li><strong>用例散落</strong>：用例分散在 Excel / Word / 个人电脑，缺乏统一资产管理。</li>
+<li><strong>执行汇总慢</strong>：每轮回归结果靠人工整理，耗时长且易漏。</li>
+<li><strong>缺陷无溯源</strong>：缺陷与用例、版本无关联，多轮回归无法横向对比。</li>
+</ul>
+<p>V1 上线 3 个月内的量化目标：</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用例资产数字化率</td>
+<td>≥ 90%</td>
+</tr>
+<tr>
+<td>单轮次执行汇总耗时</td>
+<td>4h → &lt; 10min</td>
+</tr>
+<tr>
+<td>缺陷与用例关联率</td>
+<td>≥ 95%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2">2. 核心设计思想</h2>
+<h3 id="21">2.1 三层数据模型解耦资产与执行</h3>
+<p>平台最关键的设计决策：<strong>不把"用例"与"项目/轮次"耦合</strong>，而是划分为三层，让资产管理、项目组织、执行记录三件事互不污染。</p>
+<pre><code>用例集 (Case Set)          →  资产层：企业级用例库，与项目无关
+   ↓ 按需挑选
+项目 (Project) 用例池      →  组织层：项目按需引用用例（不复制）
+   ↓ 布尔筛选 + 多人分配
+测试轮次 (Round) 用例实例  →  执行层：每轮独立结果、执行人、缺陷链接
+</code></pre>
+<p><strong>收益</strong>：</p>
+<ul>
+<li>同一用例可在多个项目、多个轮次里被并行执行，历史独立可追。</li>
+<li>用例集是"资产"，项目池只存"引用 + 快照版本号"，轮次实例是"执行副本"——三种生命周期分开管理。</li>
+<li>在执行页临时修订用例时，写回用例集并 <code>version+1</code>，旧版本快照通过 <code>case-version</code> 表保留，保证历史轮次仍能看到当时执行的那一版。</li>
+</ul>
+<h3 id="22-fail">2.2 执行闭环：Fail → 缺陷 → 报告</h3>
+<p>失败即建单，用例—缺陷—版本天然联动：</p>
+<ul>
+<li>双栏执行页 + <code>P / F / B / N / T</code> 快捷键批量打结果。</li>
+<li>选 <strong>Fail</strong> 立即弹出建缺陷对话框，自动回填测试步骤、用例版本、用例编号。</li>
+<li>通过适配器写到 Teambition，回写 <code>defect-link</code> 表建立关联。</li>
+<li>关闭轮次一键生成报告：模块充分性表 + 缺陷汇总，PRD §FR-10 三档配色导出 Excel。</li>
+</ul>
+<h3 id="23">2.3 集成用适配器隔离</h3>
+<p>所有外部系统（钉钉、Teambition、SMTP）都封装在 <code>backend/src/integrations/</code> 下的适配器接口后：</p>
+<ul>
+<li>MVP 全部是 Mock 实现（写库 + 控制台日志），研发不依赖外部环境即可跑通全链路。</li>
+<li>替换真实集成时，只改 <code>integrations.module.ts</code> 里的 <code>useClass</code>，业务层零改动。</li>
+</ul>
+<h3 id="24">2.4 零依赖起步、平滑演进</h3>
+<ul>
+<li>后端选 SQLite + TypeORM：单文件持久化，部署不依赖外部数据库。</li>
+<li>实体拆分较细（<code>case-version</code> / <code>defect-link</code> / <code>dingtalk-push-log</code> / <code>round-case-instance</code> 独立表），未来平滑迁 Postgres。</li>
+<li>前端 Vue3 + Vite + Element Plus + Pinia + ECharts，标准组合，学习成本低。</li>
+</ul>
+<hr />
+<h2 id="3">3. 业务流程</h2>
+<h3 id="31">3.1 用例资产 → 项目 → 轮次 → 执行 → 报告</h3>
+<pre><code>[1] 导入 Excel / 在线编辑
+        ↓
+   用例集（4 级模块树 + 版本快照）
+        ↓ 项目挑选
+[2] 项目用例池（引用 + 版本号）
+        ↓ 4 步向导
+[3] 轮次：布尔筛选 → 分配 → 发布 → 钉钉推送
+        ↓
+[4] 执行页（快捷键 P/F/B/N/T + Fail 联动建缺陷）
+        ↓
+[5] 关闭轮次 → 报告 + 缺陷看板
+</code></pre>
+<h3 id="32-4">3.2 轮次 4 步向导</h3>
+<ol>
+<li><strong>基本信息</strong>：轮次名、版本号、执行周期。</li>
+<li><strong>筛选策略</strong>：模块 / 等级 / 标签 / 用例类型的布尔组合，实时预览命中数。</li>
+<li><strong>分配</strong>：勾选执行人，可按用例平均分派或整轮分派。</li>
+<li><strong>确认发布</strong>：生成 <code>round-case-instance</code> 实例，触发钉钉推送。</li>
+</ol>
+<h3 id="33">3.3 执行页与快捷键</h3>
+<ul>
+<li>左侧用例树 + 状态指示，右侧执行详情表单。</li>
+<li>快捷键：<code>P</code> Pass · <code>F</code> Fail · <code>B</code> Block · <code>N</code> N/A · <code>T</code> To-Retest。</li>
+<li>打 F 后必填"实际结果"，直接弹出建缺陷对话框；缺陷提交后 <code>defect-link</code> 建立回链。</li>
+<li>允许在执行页就地修订用例文本，写回用例集并生成新版本。</li>
+</ul>
+<hr />
+<h2 id="4">4. 技术架构</h2>
+<h3 id="41">4.1 分层结构</h3>
+<pre><code>┌─────────────────────────────────────────────────────┐
+│  前端  Vue 3 + TS + Vite + Element Plus + Pinia +   │
+│        ECharts                                      │
+│   用例集视图 / 项目池 / 轮次向导 / 执行双栏 / 报告  │
+└─────────────────────┬───────────────────────────────┘
+                      │  /api/v1  (JWT)
+┌─────────────────────▼───────────────────────────────┐
+│  后端  NestJS 10 + TypeORM                          │
+│   modules: auth / case-sets / projects / rounds /   │
+│            executions / defects / reports / admin   │
+└──────┬────────────────────────────────────┬─────────┘
+       │                                    │
+┌──────▼──────────┐              ┌──────────▼──────────┐
+│  SQLite         │              │  integrations 适配层│
+│  (TypeORM 实体) │              │  Dingtalk / TB /    │
+│                 │              │  Mail  (Mock/真实)  │
+└─────────────────┘              └─────────────────────┘
+</code></pre>
+<h3 id="42">4.2 主要数据实体</h3>
+<table>
+<thead>
+<tr>
+<th>实体</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>user</code> / <code>user-project-role</code></td>
+<td>系统用户 + 项目级 RBAC</td>
+</tr>
+<tr>
+<td><code>case-set</code> / <code>module</code> / <code>case-set-case</code></td>
+<td>用例集与 4 级模块树</td>
+</tr>
+<tr>
+<td><code>case-version</code></td>
+<td>用例版本快照，支持历史追溯</td>
+</tr>
+<tr>
+<td><code>project</code> / <code>project-case-ref</code></td>
+<td>项目及其用例池引用</td>
+</tr>
+<tr>
+<td><code>round</code> / <code>round-case-instance</code></td>
+<td>测试轮次与用例执行实例</td>
+</tr>
+<tr>
+<td><code>defect-link</code></td>
+<td>用例 ↔ 缺陷 ↔ TB 任务链接</td>
+</tr>
+<tr>
+<td><code>attachment</code> / <code>audit-log</code></td>
+<td>附件与操作审计</td>
+</tr>
+<tr>
+<td><code>dingtalk-push-log</code></td>
+<td>钉钉推送日志（Mock 也落库）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-backendsrcmodules">4.3 后端模块划分（<code>backend/src/modules/</code>）</h3>
+<ul>
+<li><strong>auth</strong>：邮箱白名单 + JWT + 5 次错误锁 15 分钟。</li>
+<li><strong>case-sets</strong>：CRUD + 4 级模块树 + Excel 导入导出 + 版本快照。</li>
+<li><strong>projects</strong>：项目 CRUD + 成员管理 + 用例池 + 引用版本刷新。</li>
+<li><strong>rounds</strong>：布尔树筛选 + 4 步向导 + 多人分配 + 发布/关闭。</li>
+<li><strong>executions</strong>：执行结果录入 + 用例就地修订。</li>
+<li><strong>defects</strong>：缺陷建单 + TB 联动 + 项目缺陷看板。</li>
+<li><strong>reports</strong>：轮次报告在线视图 + Excel 导出（PRD 配色）。</li>
+<li><strong>admin / users / collab / tb-filler / persistence</strong>：管理、协作、辅助填单、持久化支持模块。</li>
+</ul>
+<h3 id="44-frontendsrcviews">4.4 前端视图划分（<code>frontend/src/views/</code>）</h3>
+<p><code>Login</code> / <code>Register</code> / <code>Admin</code> / <code>CaseSets</code> / <code>Projects</code> / <code>Rounds</code> / <code>Defects</code>，配合 <code>Layout.vue</code> 侧栏导航。所有 API 请求走 Vite <code>/api</code> 代理，鉴权通过 Pinia store 统一挂 JWT。</p>
+<h3 id="45-prd-fr-10">4.5 报告导出配色（对齐 PRD §FR-10）</h3>
+<table>
+<thead>
+<tr>
+<th>区间</th>
+<th>颜色</th>
+<th>ARGB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≥ 90%</td>
+<td>绿</td>
+<td><code>FF92D050</code></td>
+</tr>
+<tr>
+<td>30% – 90%</td>
+<td>黄</td>
+<td><code>FFFFFF00</code></td>
+</tr>
+<tr>
+<td>&lt; 30%</td>
+<td>红</td>
+<td><code>FFFF0000</code></td>
+</tr>
+<tr>
+<td>表头</td>
+<td>浅灰</td>
+<td><code>FFD9D9D9</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5">5. 关键工程约束与经验</h2>
+<p>在落地过程中沉淀的几条工程约束，直接写进了代码或部署脚本：</p>
+<h3 id="51">5.1 大批量导入</h3>
+<ul>
+<li><code>NestExpressApplication</code> 的 body limit 放到 50MB（默认 100KB 会让 1000 条 JSON 直接 500）。</li>
+<li><code>bulkCreate</code> 改单事务：一次扫描求各前缀最大编号 → 内存自增分配（消除每条全表扫描的 O(n²)）；模块路径按 path 缓存；<code>caseRepo.save(entities, {chunk: 500})</code> 分块提交；版本快照同事务。</li>
+<li>前端分批提交（每批 2000）+ 进度显示。</li>
+<li>实测：万级用例从"不可能"降到 2.3s，且近线性。</li>
+</ul>
+<h3 id="52-sqljs">5.2 sql.js 的坑</h3>
+<ul>
+<li>单条 <code>delete/update</code> 也会 autoSave 序列化整库，避免并发批量单删（会 <code>ERR_CONNECTION_REFUSED</code>）。</li>
+<li>万级逐条删除不要用 sql.js 做，走事务批量。</li>
+</ul>
+<h3 id="53">5.3 乐观锁的正确姿势</h3>
+<ul>
+<li><code>@VersionColumn</code> + <code>repo.save()</code> 不能可靠触发冲突异常（后写者不报错）。</li>
+<li>改用显式条件更新：<code>createQueryBuilder().update().set({..., version: () =&gt; 'version + 1'}).where('id=:id AND version=:v')</code>，检查 <code>res.affected === 0</code> 判冲突。</li>
+<li>前端必须把"打开时读到的 version"一起提交，服务端不能自己重新 <code>findOne</code> 拿最新版本再更新，否则退化为 last-write-wins。</li>
+</ul>
+<h3 id="54">5.4 网络与证书</h3>
+<ul>
+<li>公司出口是 sangfor HTTPS 中间人，Node fetch 默认走 bundled CA 会全挂。</li>
+<li>Node 22 加启动参数 <code>--use-system-ca</code> 走 Windows 证书库；<strong>不能</strong>用 <code>NODE_TLS_REJECT_UNAUTHORIZED=0</code> 蒙混。</li>
+</ul>
+<h3 id="55">5.5 前端图表</h3>
+<ul>
+<li>ECharts 放在 el-tabs 非激活 tab 时，<code>onMounted</code> 时容器 0×0，直接空白。</li>
+<li>复用 echarts 实例 + 跳过 0×0 容器 + <code>ResizeObserver</code> 监听容器尺寸变化时重画并 resize。</li>
+</ul>
+<h3 id="56">5.6 构建与部署</h3>
+<ul>
+<li><code>tsconfig.json</code> 明确 <code>"include": ["src/**/*.ts"]</code> + <code>"exclude": ["scripts", "dist", "node_modules"]</code>，避免辅助脚本上移公共 <code>rootDir</code> 导致 <code>dist/main.js</code> 变成 <code>dist/src/main.js</code>，nssm 静默启动失败。</li>
+</ul>
+<hr />
+<h2 id="6-v1">6. 范围划线（V1 明确不做）</h2>
+<table>
+<thead>
+<tr>
+<th>在 V1 范围内</th>
+<th>不在 V1 范围内</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用例集 CRUD、导入、在线编辑</td>
+<td>自动化用例脚本执行</td>
+</tr>
+<tr>
+<td>项目管理 + 轮次执行</td>
+<td>性能测试管理</td>
+</tr>
+<tr>
+<td>钉钉任务推送</td>
+<td>测试环境管理</td>
+</tr>
+<tr>
+<td>缺陷系统（TB）联动建单</td>
+<td>测试需求管理</td>
+</tr>
+<tr>
+<td>轮次报告与缺陷看板</td>
+<td>测试资源/工时统计</td>
+</tr>
+<tr>
+<td>邮箱注册 + 登录 + RBAC</td>
+<td>SSO / LDAP</td>
+</tr>
+</tbody>
+</table>
+<p>Mock 适配器保留了后续替换真实集成的能力，评审流程、移动端、对象存储、i18n 等留在 PRD §12 开放问题。</p>
+<hr />
+<h2 id="7">7. 一句话总结</h2>
+<blockquote>
+<p>用 <strong>"用例集 / 项目池 / 轮次实例"三层数据模型</strong> 解耦资产与执行；用 <strong>适配器层</strong> 隔离外部系统；用 <strong>NestJS + TypeORM + SQLite</strong> 做零依赖起步、平滑演进；把"人工汇总、缺陷无溯源"的痛点用 <strong>执行页快捷键 + 自动建单 + 报告一键导出</strong> 打成闭环。</p>
+</blockquote></body></html>
