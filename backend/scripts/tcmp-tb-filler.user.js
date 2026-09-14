@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TCMP TB 一键打开 + 提交回传
 // @namespace    https://tcmp.local
-// @version      2.8.4
+// @version      2.8.5
 // @description  TCMP → Teambition：自动点 "+ 创建缺陷" + 自动回填标题/软件版本/备注；别持 fetch/XHR 回传 taskId+标题；另支持 #tcmp_sync 同步状态与标题。
 // @author       TCMP
 // @match        https://*.teambition.com/*
@@ -13,9 +13,9 @@
   'use strict';
 
   // 启动 banner：你能立刻看到这行才说明脚本装上了
-  console.log('%c[TCMP] userscript loaded v2.8.4 @ ' + location.href,
+  console.log('%c[TCMP] userscript loaded v2.8.5 @ ' + location.href,
     'color:#fff;background:#67c23a;padding:2px 6px;border-radius:3px;font-weight:bold');
-  window.__tcmp_loaded = '2.8.4';
+  window.__tcmp_loaded = '2.8.5';
 
   const TITLE_PLACEHOLDER = '输入标题以新建缺陷';
   const TRIGGER_KEY = 'tcmp_open';
@@ -98,7 +98,10 @@
     let budget = 4000; // 超大响应下不拖慢页面
     const walk = (node, depth) => {
       if (sectionName || --budget <= 0 || depth > 6 || !node || typeof node !== 'object') return;
-      if (!Array.isArray(node) && node._id === want && typeof node.name === 'string' && node.name.trim()) {
+      // 任务对象也可能带 _id/name，排掉，否则会把任务标题当成分组名
+      const looksLikeTask = ('content' in node) || ('_tasklistId' in node) || ('dueDate' in node);
+      if (!Array.isArray(node) && node._id === want && !looksLikeTask
+        && typeof node.name === 'string' && node.name.trim()) {
         sectionName = node.name.trim();
         log('★ 从接口响应解析到当前分组名:', sectionName);
         return;
@@ -110,12 +113,19 @@
     try { walk(json, 0); } catch (e) { log('harvestSectionName err', e); }
   }
 
-  /** 侧边栏里指向当前分组的链接，文本就是分组名 */
+  /**
+   * 侧边栏里指向当前分组的那条链接，文本就是分组名。
+   * href 必须**正好以分组 id 结尾**：任务行的链接是 `/bug/section/<id>/task/<tid>`，
+   * 用 `href*=` 的子串匹配会命中任务行，把任务标题当成分组名。
+   * 侧边栏文本可能带条数角标（"不分类缺陷 128"），末尾数字要去掉。
+   */
   function readSectionNameFromDom() {
     const id = currentSectionId();
     if (!id) return '';
-    const a = document.querySelector(`a[href*="/bug/section/${id}"]`);
-    return a ? (a.textContent || '').trim() : '';
+    const tail = new RegExp(`/bug/section/${id}/?$`, 'i');
+    const a = Array.from(document.querySelectorAll(`a[href*="/bug/section/${id}"]`))
+      .find((el) => tail.test(el.getAttribute('href') || ''));
+    return a ? (a.textContent || '').trim().replace(/\s*\d+$/, '') : '';
   }
 
   function resolveSectionName() {
@@ -581,20 +591,53 @@
     // 已经是目标值就跳过
     if (curVal().includes(wanted)) { log(labelText, '已是', targetValue); return true; }
 
-    const findOption = () => {
-      const menus = Array.from(document.querySelectorAll('[role="menu"], [class*="menu__"], [class*="dropdown"], [class*="selectable-selection"]'))
-        .filter(m => m.offsetParent !== null);
+    const visibleMenus = () => Array.from(document.querySelectorAll('[role="menu"], [class*="menu__"], [class*="dropdown"], [class*="selectable-selection"]'))
+      .filter(m => m.offsetParent !== null);
+
+    const findOption = (loose) => {
+      const menus = visibleMenus();
       const scopes = menus.length ? menus : [document];
-      const eq = (el) => (el.textContent || '').trim() === targetValue;
+      const norm = (el) => (el.textContent || '').replace(/\s/g, '');
+      // loose：选项文本与目标互相包含即可。仅在严格相等找不到时启用，
+      // 因为分组名可能带角标/后缀，与选项文本不完全一致。
+      const hit = (el) => {
+        const t = norm(el);
+        if (!t) return false;
+        return loose ? (t.includes(wanted) || wanted.includes(t)) : t === wanted;
+      };
       for (const m of scopes) {
         const items = Array.from(m.querySelectorAll('[class*="item"], [role="option"], [role="menuitem"], li'))
-          .filter(el => el.offsetParent !== null && eq(el));
-        if (items.length) return items[items.length - 1];
+          .filter(el => el.offsetParent !== null && hit(el));
+        // loose 下可能命中多个，取文本最短的（最接近目标，避免选到父级容器）
+        if (items.length) {
+          return loose
+            ? items.reduce((a, b) => (norm(b).length < norm(a).length ? b : a))
+            : items[items.length - 1];
+        }
         const leaf = Array.from(m.querySelectorAll('[class*="choice-renderer-value"], span, div'))
-          .find(el => el.offsetParent !== null && el.children.length === 0 && eq(el));
+          .find(el => el.offsetParent !== null && el.children.length === 0 && hit(el));
         if (leaf) return leaf.closest('[class*="item"]') || leaf.parentElement || leaf;
       }
       return null;
+    };
+
+    /**
+     * 选项多时 TB 会在浮层里渲染搜索框，且列表是滚动/虚拟化的 —— 没渲染出来的选项
+     * 在 DOM 里找不到（「缺陷分类」就有几十条）。所以先把目标值打进搜索框过滤，
+     * 再去点。没有搜索框的字段（严重程度等）自动跳过这步。
+     */
+    const filterBySearch = async () => {
+      for (const m of visibleMenus()) {
+        const inp = Array.from(m.querySelectorAll('input')).find(
+          el => el.offsetParent !== null && !el.disabled && !['checkbox', 'radio'].includes(el.type));
+        if (inp) {
+          try { realClick(inp); } catch {}
+          setNativeValue(inp, targetValue);
+          await wait(400);
+          return true;
+        }
+      }
+      return false;
     };
 
     // 最多两次尝试：点开 → 选项 → 校验；未生效则关闭浮层重试
@@ -605,8 +648,13 @@
       try { realClick(clickTarget); } catch {}
       try { invokeReactClick(clickTarget); } catch {}
       try { realClick(right); } catch {}
-      const opt = await waitFor(findOption, 2500);
-      if (!opt) { log('未找到选项', labelText, targetValue, 'attempt', attempt); continue; }
+      const searched = await filterBySearch();
+      let opt = await waitFor(() => findOption(false), searched ? 1500 : 2500);
+      if (!opt) {
+        opt = await waitFor(() => findOption(true), 800);
+        if (opt) log('严格匹配未命中，改用包含匹配', labelText, '→', (opt.textContent || '').trim());
+      }
+      if (!opt) { log('未找到选项', labelText, targetValue, '搜索框=' + searched, 'attempt', attempt); continue; }
       try { realClick(opt); } catch {}
       try { invokeReactClick(opt); } catch {}
       // 等待并校验字段值已变为目标
@@ -865,10 +913,10 @@
         log('缺陷分类已有值，跳过');
       } else {
         const want = resolveSectionName();
+        log('缺陷分类目标值（当前分组名）=', want || '(未取到)', '| sectionId =', currentSectionId() || '(URL 无 /bug/section/)');
         if (want) {
           await selectDropdownOption('缺陷分类', want);
         } else {
-          log('未识别到当前分组名，sectionId=', currentSectionId() || '(URL 里没有 /bug/section/)');
           toast('⚠ 未识别到当前 TB 分组，缺陷分类请手动选', false);
         }
       }
