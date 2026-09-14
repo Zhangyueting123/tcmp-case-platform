@@ -13,19 +13,23 @@
 
 ## 2026-09-14
 
-### 产品名统一为「用例管理与执行平台」`需重建前端`
+### 2026-09-14 发布批次（视觉 + 鉴权 + 产品名）`已部署 151+127`
+- 部署：`python deploy/windows/deploy_dist_patch.py`（127 → 151）；前后端 dist 已同步并重启后端。
+- 验证：151 `BACKEND_OK`、两机 `FRONT=200`、`NGINX_OK`；127 重启后端口探测曾 `NOT_LISTENING_YET`，约数秒后 API 应恢复（与历史 CHANGELOG 一致）。
+
+### 产品名统一为「用例管理与执行平台」`需重建前端` `已部署 151+127`
 - 变更：顶栏、登录页、浏览器标题与 PRD/README 一致；新增 `constants/product.ts` 集中维护 TCMP 与中文全称。
 - 涉及文件：`frontend/src/constants/product.ts`；`Layout.vue`；`AuthLayout.vue`；`index.html`；`main.ts`。
 - 部署动作：前端 build 后发布。
 - 验证：顶栏与 `/login` 标题均为「TCMP · 用例管理与执行平台」。
 
-### 安全：用户 system-roles / status 仅 SysAdmin 可改 `仅需重启后端`
+### 安全：用户 system-roles / status 仅 SysAdmin 可改 `仅需重启后端` `已部署 151+127`
 - 变更：新增 `RolesGuard`；`PATCH /users/:id/system-roles` 与 `PATCH /users/:id/status` 加 `@SysAdminOnly()`；`scripts/platform-smoke-test.mjs` 增加 tester 越权改角色应 403 断言。
 - 涉及文件：`common/guards/roles.guard.ts`；`common/decorators.ts`；`app.module.ts`；`modules/users/users.controller.ts`；`scripts/platform-smoke-test.mjs`。
 - 部署动作：后端 build 后重启服务。
 - 验证：`node scripts/platform-smoke-test.mjs http://localhost:3000` 安全项全 PASS。
 
-### 全站视觉：蓝色品牌主题与页面样式统一 `需重建前端`
+### 全站视觉：蓝色品牌主题与页面样式统一 `需重建前端` `已部署 151+127`
 - 变更：新增设计令牌（`styles/tokens.css`）并映射 Element Plus 主色；扩展全局页面壳（`page-header`、`content-card`、`stat-tile`、`data-table` 等）；顶栏 TCMP 字标改为纯蓝渐变；登录/注册强调色与主应用统一为品牌蓝；工作台、项目/用例集列表与详情、执行页、轮次/报告、评审、缺陷看板、管理页一轮样式收敛（表格 stripe、卡片与间距统一）。
 - 涉及文件：`frontend/src/styles/tokens.css`；`frontend/src/styles.css`；`frontend/src/main.ts`；`frontend/src/views/Layout.vue`；`frontend/src/components/AuthLayout.vue`；各主要 `views/**` 页面。
 - 部署动作：前端 build 后 `deploy_dist_patch.py`。
