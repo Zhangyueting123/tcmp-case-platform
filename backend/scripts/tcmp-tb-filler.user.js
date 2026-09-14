@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TCMP TB 一键打开 + 提交回传
 // @namespace    https://tcmp.local
-// @version      2.8.3
+// @version      2.8.4
 // @description  TCMP → Teambition：自动点 "+ 创建缺陷" + 自动回填标题/软件版本/备注；别持 fetch/XHR 回传 taskId+标题；另支持 #tcmp_sync 同步状态与标题。
 // @author       TCMP
 // @match        https://*.teambition.com/*
@@ -13,9 +13,9 @@
   'use strict';
 
   // 启动 banner：你能立刻看到这行才说明脚本装上了
-  console.log('%c[TCMP] userscript loaded v2.8.3 @ ' + location.href,
+  console.log('%c[TCMP] userscript loaded v2.8.4 @ ' + location.href,
     'color:#fff;background:#67c23a;padding:2px 6px;border-radius:3px;font-weight:bold');
-  window.__tcmp_loaded = '2.8.3';
+  window.__tcmp_loaded = '2.8.4';
 
   const TITLE_PLACEHOLDER = '输入标题以新建缺陷';
   const TRIGGER_KEY = 'tcmp_open';
@@ -74,6 +74,58 @@
     }
   }
 
+  // ============================================================
+  // 当前 TB 分组（section）名 —— 就是「缺陷分类」要填的值
+  // TB 不会自动回填这个自定义字段（后端 CDP 路径同样是显式选择），所以得自己拿到名字。
+  // URL 里只有 24 位 id，名字有两个来源：侧边栏那条 href 带 id 的链接；以及 TB 拉分组
+  // 数据的接口响应（形如 { _id, name }）——顺路从已劫持的 JSON 里按 id 捞。
+  // ============================================================
+  let sectionName = '';
+
+  function currentSectionId() {
+    const m = (location.pathname || '').match(/\/bug\/section\/([a-f0-9]{24})/i);
+    return m ? m[1] : '';
+  }
+
+  function needSectionHarvest(url) {
+    return !sectionName && !!currentSectionId() && /\/api\//i.test(url || '');
+  }
+
+  /** 在任意 JSON 里递归找 _id === 当前分组 id 的对象，取它的 name */
+  function harvestSectionName(json) {
+    const want = currentSectionId();
+    if (!want || sectionName || !json || typeof json !== 'object') return;
+    let budget = 4000; // 超大响应下不拖慢页面
+    const walk = (node, depth) => {
+      if (sectionName || --budget <= 0 || depth > 6 || !node || typeof node !== 'object') return;
+      if (!Array.isArray(node) && node._id === want && typeof node.name === 'string' && node.name.trim()) {
+        sectionName = node.name.trim();
+        log('★ 从接口响应解析到当前分组名:', sectionName);
+        return;
+      }
+      for (const v of Array.isArray(node) ? node : Object.values(node)) {
+        if (v && typeof v === 'object') walk(v, depth + 1);
+      }
+    };
+    try { walk(json, 0); } catch (e) { log('harvestSectionName err', e); }
+  }
+
+  /** 侧边栏里指向当前分组的链接，文本就是分组名 */
+  function readSectionNameFromDom() {
+    const id = currentSectionId();
+    if (!id) return '';
+    const a = document.querySelector(`a[href*="/bug/section/${id}"]`);
+    return a ? (a.textContent || '').trim() : '';
+  }
+
+  function resolveSectionName() {
+    if (!sectionName) {
+      const fromDom = readSectionNameFromDom();
+      if (fromDom) { sectionName = fromDom; log('★ 从侧边栏取到当前分组名:', fromDom); }
+    }
+    return sectionName;
+  }
+
   // hook fetch
   const origFetch = window.fetch;
   if (origFetch) {
@@ -92,6 +144,9 @@
         if (looksLikeTaskCreate(method, url)) {
           const clone = resp.clone();
           clone.json().then((j) => { log('[fetch hit]', url, j); tryHandleCreated(j); }).catch(() => {});
+        } else if (needSectionHarvest(url)) {
+          const clone = resp.clone();
+          clone.json().then(harvestSectionName).catch(() => {});
         }
       } catch (e) { log('fetch hook err', e); }
       return resp;
@@ -115,7 +170,8 @@
       try {
         const m = (this.__tcmp_method || '').toUpperCase();
         if (m === 'POST') log('[xhr POST]', this.__tcmp_url);
-        if (looksLikeTaskCreate(this.__tcmp_method, this.__tcmp_url)) {
+        const isCreate = looksLikeTaskCreate(this.__tcmp_method, this.__tcmp_url);
+        if (isCreate || needSectionHarvest(this.__tcmp_url)) {
           const self = this;
           // 用 readystatechange + load + loadend 三重保险
           const tryParse = (where) => {
@@ -126,18 +182,19 @@
               if (rt === 'json') {
                 // 已被浏览器解析过，直接拿 response
                 j = self.response;
-                log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'rt=json');
+                if (isCreate) log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'rt=json');
               } else if (rt === '' || rt === 'text') {
                 const txt = self.responseText;
-                log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'len=' + (txt ? txt.length : 0));
+                if (isCreate) log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'len=' + (txt ? txt.length : 0));
                 if (!txt) return;
                 try { j = JSON.parse(txt); }
-                catch (e) { log('  JSON.parse 失败，responseText 前 200:', txt.slice(0, 200)); return; }
+                catch (e) { if (isCreate) log('  JSON.parse 失败，responseText 前 200:', txt.slice(0, 200)); return; }
               } else {
-                log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'rt=' + rt + ' (不支持，跳过)');
+                if (isCreate) log('[xhr ' + where + ']', self.__tcmp_url, 'status=' + status, 'rt=' + rt + ' (不支持，跳过)');
                 return;
               }
               if (!j) return;
+              if (!isCreate) { harvestSectionName(j); return; }
               log('[xhr hit]', self.__tcmp_url, j);
               tryHandleCreated(j);
             } catch (e) { log('  tryParse err', e); }
@@ -799,15 +856,23 @@
     try { await selectDropdownOption('优先级', '普通'); } catch (e) { log('优先级 err', e); }
     closePopovers();
 
-    // 5) 缺陷分类：由 TB 按「+ 创建缺陷」所属分组回填（见 openCreateModal），这里只做诊断
+    // 5) 缺陷分类 = 当前 TB 分组名（TB 不会自动回填这个自定义字段，须显式选）
     try {
       const cur = readFieldValue('缺陷分类');
       log('缺陷分类当前值:', cur);
-      if (cur !== null) {
-        const empty = /待添加|请选择|^$/.test(cur) || cur === '缺陷分类';
-        toast(empty ? '缺陷分类为空，请手动选择' : '缺陷分类: ' + cur, !empty);
+      const empty = cur === null || /待添加|请选择|^$/.test(cur) || cur === '缺陷分类';
+      if (!empty) {
+        log('缺陷分类已有值，跳过');
+      } else {
+        const want = resolveSectionName();
+        if (want) {
+          await selectDropdownOption('缺陷分类', want);
+        } else {
+          log('未识别到当前分组名，sectionId=', currentSectionId() || '(URL 里没有 /bug/section/)');
+          toast('⚠ 未识别到当前 TB 分组，缺陷分类请手动选', false);
+        }
       }
-    } catch (e) { log('缺陷分类诊断 err', e); }
+    } catch (e) { log('缺陷分类 err', e); }
 
     toast('✓ 回填流程结束，请核对后点「完成」');
   }
@@ -831,10 +896,10 @@
   /**
    * 打开创建缺陷弹窗。
    *
-   * 必须用真实事件序列（realClick）打开：TB 靠按钮所属分组的上下文回填「缺陷分类」，
-   * React 在 root 上按真实 DOM 事件派发，上下文才完整。invokeReactClick 传的是伪造
-   * 事件、且会向上最多爬 8 层找 onClick，可能命中不带分组上下文的通用 handler ——
-   * 弹窗照样开，但缺陷分类为空。所以它只能当兜底。
+   * 真实事件序列（realClick）优先：React 在 root 上按真实 DOM 事件派发，语义和人工
+   * 点击一致。invokeReactClick 传的是伪造事件、且会向上最多爬 8 层找 onClick，可能
+   * 命中非预期的祖先 handler，只作兜底。
+   * 注：这不影响「缺陷分类」——实测 TB 不会自动回填该自定义字段，须显式选择。
    */
   async function openCreateModal() {
     if (isModalOpen()) return true;

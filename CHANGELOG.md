@@ -13,10 +13,17 @@
 
 ## 2026-09-14
 
-### 修复：TB 油猴脚本「缺陷分类」不回填（v2.8.3）`需重装油猴脚本` `已部署 151+127`
-- 现象：TCMP 一键打开 TB 创建缺陷后，「缺陷分类」为"待添加"；但人工在同一路径点「+ 创建缺陷」，TB 会按当前分组自动回填。
-- 原因：`openCreateModal()` 优先用 `invokeReactClick()` 打开弹窗——它直接调 React props 的 `onClick` 并传**伪造事件**，还会向上最多爬 8 层找 `onClick`，可能命中不带分组上下文的通用 handler。弹窗能开，但 TB 拿不到分组，分类就空了。
-- 变更：改为**真实事件序列 `realClick()` 优先**（React 在 root 上按真实 DOM 事件派发，分组上下文完整），`invokeReactClick()` 仅在真实点击未弹窗时兜底；点击前加 400ms 让 TB 挂好分组上下文；日志输出同类按钮个数便于排查点错按钮。
+### 修复：TB 油猴脚本「缺陷分类」填当前 TB 分组名（v2.8.4）`需重装油猴脚本` `已部署 151+127`
+- 现象：v2.8.3 改了点击方式后「缺陷分类」仍为"待添加"。
+- 结论：**TB 不会自动回填这个自定义字段**，必须显式选择——后端 CDP 路径本来就是显式选的（`fillSelectField(..., ['缺陷分类'], data.category)`），v2.8.3 那条"TB 靠分组上下文回填"的判断是错的（人工点击时看到的回填，应是 TB 对自定义字段的 last-used 记忆）。
+- 变更：脚本改为显式选「缺陷分类」= **当前 TB 分组名**。分组名两路取：① 侧边栏 `a[href*="/bug/section/<id>"]` 的文本；② 从已劫持的 API 响应里递归找 `_id === 当前分组 id` 的对象取 `name`（限深 6 层、节点预算 4000，取到即停）。两路都拿不到才提示手动选。字段已有值则跳过。
+- 涉及文件：`backend/scripts/tcmp-tb-filler.user.js`。
+- 部署动作：`python deploy/windows/deploy_userscript.py`。
+- 验证：两台 `HTTP=200` + `@version 2.8.4`。使用者侧：控制台应出现 `★ 从侧边栏取到当前分组名:` 或 `★ 从接口响应解析到当前分组名:`，随后 `✓ 已选 缺陷分类 = <分组名>`。
+
+### 修复：TB 油猴脚本创建弹窗改用真实点击（v2.8.3）`需重装油猴脚本` `已部署 151+127`
+- ⚠ **本条未解决「缺陷分类」问题**，真正原因见上面 v2.8.4；当时误判为点击方式丢了分组上下文。改动本身合理故保留。
+- 变更：`openCreateModal()` 改为**真实事件序列 `realClick()` 优先**（React 在 root 上按真实 DOM 事件派发，语义与人工点击一致），`invokeReactClick()`（传伪造事件、会向上爬 8 层找 `onClick`，可能命中非预期祖先 handler）仅在真实点击未弹窗时兜底；点击前留 400ms；日志输出同类按钮个数便于排查点错按钮。
 - 涉及文件：`backend/scripts/tcmp-tb-filler.user.js`；新增 `deploy/windows/deploy_userscript.py`。
 - 部署动作：`python deploy/windows/deploy_userscript.py`（151+127）。`/tb-filler/userscript` 每次请求都从磁盘读文件，**只传文件即可，无需 build、无需重启后端**。注意 `deploy_dist_patch.py` 不同步 `backend/scripts/`，`_transfer.py` 又只认 151 的密码环境变量且要整包覆盖 `C:\tcmp\app`，故单独加了这个只传一个文件的脚本（按 host 取密码，上传后走 nginx→后端校验 `@version`）。
 - 验证：两台 `HTTP=200` 且返回头含 `// @version 2.8.3`。使用者侧：Tampermonkey 检查更新到 v2.8.3 → 强刷 TB 页面 → 控制台出现 `userscript loaded v2.8.3`；一键创建后「缺陷分类」自动等于当前分组，右下角提示显示该分类名而非"缺陷分类为空"。
