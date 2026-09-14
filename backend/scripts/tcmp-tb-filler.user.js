@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TCMP TB 一键打开 + 提交回传
 // @namespace    https://tcmp.local
-// @version      2.8.2
+// @version      2.8.3
 // @description  TCMP → Teambition：自动点 "+ 创建缺陷" + 自动回填标题/软件版本/备注；别持 fetch/XHR 回传 taskId+标题；另支持 #tcmp_sync 同步状态与标题。
 // @author       TCMP
 // @match        https://*.teambition.com/*
@@ -13,9 +13,9 @@
   'use strict';
 
   // 启动 banner：你能立刻看到这行才说明脚本装上了
-  console.log('%c[TCMP] userscript loaded v2.8.2 @ ' + location.href,
+  console.log('%c[TCMP] userscript loaded v2.8.3 @ ' + location.href,
     'color:#fff;background:#67c23a;padding:2px 6px;border-radius:3px;font-weight:bold');
-  window.__tcmp_loaded = '2.8.2';
+  window.__tcmp_loaded = '2.8.3';
 
   const TITLE_PLACEHOLDER = '输入标题以新建缺陷';
   const TRIGGER_KEY = 'tcmp_open';
@@ -799,13 +799,13 @@
     try { await selectDropdownOption('优先级', '普通'); } catch (e) { log('优先级 err', e); }
     closePopovers();
 
-    // 5) 缺陷分类：TB 应按当前 URL 分组自动回显。这里读一下当前值做诊断
+    // 5) 缺陷分类：由 TB 按「+ 创建缺陷」所属分组回填（见 openCreateModal），这里只做诊断
     try {
       const cur = readFieldValue('缺陷分类');
       log('缺陷分类当前值:', cur);
       if (cur !== null) {
         const empty = /待添加|请选择|^$/.test(cur) || cur === '缺陷分类';
-        toast('缺陷分类: ' + (empty ? '空(未自动回显)' : cur), !empty);
+        toast(empty ? '缺陷分类为空，请手动选择' : '缺陷分类: ' + cur, !empty);
       }
     } catch (e) { log('缺陷分类诊断 err', e); }
 
@@ -828,20 +828,39 @@
     return null;
   }
 
+  /**
+   * 打开创建缺陷弹窗。
+   *
+   * 必须用真实事件序列（realClick）打开：TB 靠按钮所属分组的上下文回填「缺陷分类」，
+   * React 在 root 上按真实 DOM 事件派发，上下文才完整。invokeReactClick 传的是伪造
+   * 事件、且会向上最多爬 8 层找 onClick，可能命中不带分组上下文的通用 handler ——
+   * 弹窗照样开，但缺陷分类为空。所以它只能当兜底。
+   */
   async function openCreateModal() {
     if (isModalOpen()) return true;
     toast('正在打开创建缺陷弹窗…');
     const btn = await waitFor(findAddBtn, 20000);
     if (!btn) { toast('未找到"+ 创建缺陷"按钮', false); return false; }
-    log('找到按钮，触发点击', btn);
-    if (!invokeReactClick(btn)) realClick(btn);
-    const ok = await waitFor(isModalOpen, 5000);
-    if (ok) return true;
+    const sameKind = document.querySelectorAll("[data-role='board-table-header-add-task']").length;
+    log(`找到按钮，触发点击（同类按钮 ${sameKind} 个）`, btn);
+    // 让 TB 把当前分组/筛选上下文挂到按钮上，避免过早点击丢失「缺陷分类」回填
+    await wait(400);
+
+    realClick(btn);
+    if (await waitFor(isModalOpen, 5000)) return true;
+
+    log('真实点击未弹窗，改用 React props 兜底（缺陷分类可能不会回填）');
+    invokeReactClick(btn);
+    if (await waitFor(isModalOpen, 3000)) return true;
+
     log('首次点击未弹窗，重试…');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await wait(300);
     const btn2 = await waitFor(findAddBtn, 3000);
-    if (btn2) { if (!invokeReactClick(btn2)) realClick(btn2); }
+    if (btn2) {
+      realClick(btn2);
+      if (!(await waitFor(isModalOpen, 3000))) invokeReactClick(btn2);
+    }
     return !!(await waitFor(isModalOpen, 5000));
   }
 

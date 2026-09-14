@@ -13,6 +13,14 @@
 
 ## 2026-09-14
 
+### 修复：TB 油猴脚本「缺陷分类」不回填（v2.8.3）`需重装油猴脚本` `已部署 151+127`
+- 现象：TCMP 一键打开 TB 创建缺陷后，「缺陷分类」为"待添加"；但人工在同一路径点「+ 创建缺陷」，TB 会按当前分组自动回填。
+- 原因：`openCreateModal()` 优先用 `invokeReactClick()` 打开弹窗——它直接调 React props 的 `onClick` 并传**伪造事件**，还会向上最多爬 8 层找 `onClick`，可能命中不带分组上下文的通用 handler。弹窗能开，但 TB 拿不到分组，分类就空了。
+- 变更：改为**真实事件序列 `realClick()` 优先**（React 在 root 上按真实 DOM 事件派发，分组上下文完整），`invokeReactClick()` 仅在真实点击未弹窗时兜底；点击前加 400ms 让 TB 挂好分组上下文；日志输出同类按钮个数便于排查点错按钮。
+- 涉及文件：`backend/scripts/tcmp-tb-filler.user.js`；新增 `deploy/windows/deploy_userscript.py`。
+- 部署动作：`python deploy/windows/deploy_userscript.py`（151+127）。`/tb-filler/userscript` 每次请求都从磁盘读文件，**只传文件即可，无需 build、无需重启后端**。注意 `deploy_dist_patch.py` 不同步 `backend/scripts/`，`_transfer.py` 又只认 151 的密码环境变量且要整包覆盖 `C:\tcmp\app`，故单独加了这个只传一个文件的脚本（按 host 取密码，上传后走 nginx→后端校验 `@version`）。
+- 验证：两台 `HTTP=200` 且返回头含 `// @version 2.8.3`。使用者侧：Tampermonkey 检查更新到 v2.8.3 → 强刷 TB 页面 → 控制台出现 `userscript loaded v2.8.3`；一键创建后「缺陷分类」自动等于当前分组，右下角提示显示该分类名而非"缺陷分类为空"。
+
 ### 2026-09-14 发布批次（视觉 + 鉴权 + 产品名）`已部署 151+127`
 - 部署：`python deploy/windows/deploy_dist_patch.py`（127 → 151）；前后端 dist 已同步并重启后端。
 - 验证：151 `BACKEND_OK`、两机 `FRONT=200`、`NGINX_OK`；127 重启后端口探测曾 `NOT_LISTENING_YET`，约数秒后 API 应恢复（与历史 CHANGELOG 一致）。
