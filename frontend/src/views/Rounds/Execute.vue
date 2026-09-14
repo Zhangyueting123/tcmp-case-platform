@@ -9,11 +9,11 @@
     </div>
     <div class="exec-layout">
     <div class="exec-tree" :style="{ width: treeWidth + 'px' }">
-      <div class="tree-header">
-        <span style="font-weight:600">用例</span>
-        <span style="color:#909399;font-size:12px">{{ doneCount }} / {{ instances.length }}</span>
+      <div class="exec-tree-head">
+        <span>用例</span>
+        <span class="exec-tree-meta">{{ doneCount }} / {{ instances.length }}</span>
       </div>
-      <el-input v-model="filter" placeholder="搜索 标题/编号" clearable size="small" style="margin-bottom:8px" />
+      <el-input v-model="filter" class="tree-filter" placeholder="搜索 标题/编号" clearable size="small" />
       <div class="result-filter">
         <el-radio-group v-model="resultFilter" size="small">
           <el-radio-button label="ALL">全部</el-radio-button>
@@ -67,18 +67,18 @@
     <div class="exec-resizer" @mousedown="startResize" title="拖拽调节宽度"></div>
 
     <div class="exec-detail" v-if="current">
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
-        <h3 style="margin: 0; flex: 1">{{ current.case?.code }} · {{ current.case?.title }}</h3>
+      <div class="exec-detail-head">
+        <h3 class="exec-detail-title">{{ current.case?.code }} · {{ current.case?.title }}</h3>
         <el-tag>{{ current.case?.priority }}</el-tag>
         <el-tag type="info">v{{ current.caseVersion }}</el-tag>
         <el-button size="small" :icon="EditPen" @click="openEditCase">编辑用例</el-button>
         <el-button size="small" type="danger" plain :icon="Delete" @click="onRemoveInstance">从本轮删除</el-button>
       </div>
       <el-descriptions class="case-desc" :column="1" border size="small">
-        <el-descriptions-item label="前置条件"><pre style="margin: 0; white-space: pre-wrap">{{ current.case?.precondition }}</pre></el-descriptions-item>
-        <el-descriptions-item label="测试步骤"><pre style="margin: 0; white-space: pre-wrap">{{ current.case?.steps }}</pre></el-descriptions-item>
-        <el-descriptions-item label="测试数据"><pre style="margin: 0; white-space: pre-wrap">{{ current.case?.testData }}</pre></el-descriptions-item>
-        <el-descriptions-item label="预期结果"><pre style="margin: 0; white-space: pre-wrap">{{ current.case?.expectedResult }}</pre></el-descriptions-item>
+        <el-descriptions-item label="前置条件"><pre class="case-field-pre">{{ current.case?.precondition }}</pre></el-descriptions-item>
+        <el-descriptions-item label="测试步骤"><pre class="case-field-pre">{{ current.case?.steps }}</pre></el-descriptions-item>
+        <el-descriptions-item label="测试数据"><pre class="case-field-pre">{{ current.case?.testData }}</pre></el-descriptions-item>
+        <el-descriptions-item label="预期结果"><pre class="case-field-pre">{{ current.case?.expectedResult }}</pre></el-descriptions-item>
       </el-descriptions>
 
       <!-- 上一轮执行结果（如有） -->
@@ -87,22 +87,22 @@
         :type="prevResultAlertType(current.previousResult.result)"
         :closable="false"
         show-icon
-        style="margin-top:10px"
+        class="prev-result-alert"
       >
         <template #title>
-          <span style="font-weight:600">上一轮（{{ current.previousResult.roundName }}）：</span>
-          <span :class="`result-badge result-${current.previousResult.result}`" style="margin-left:6px">
+          <span class="prev-result-title">上一轮（{{ current.previousResult.roundName }}）：</span>
+          <span :class="`result-badge result-${current.previousResult.result} tag-inline`">
             {{ current.previousResult.result }}
           </span>
-          <span v-if="current.previousResult.executedAt" style="color:#909399;font-size:12px;margin-left:8px">
+          <span v-if="current.previousResult.executedAt" class="exec-tree-meta tag-inline">
             {{ formatTime(current.previousResult.executedAt) }}
           </span>
         </template>
-        <div v-if="current.previousResult.actualResult" style="margin-top:4px">
-          <b>实际结果：</b><span style="white-space:pre-wrap">{{ current.previousResult.actualResult }}</span>
+        <div v-if="current.previousResult.actualResult" class="prev-result-line">
+          <b>实际结果：</b><span class="pre-wrap">{{ current.previousResult.actualResult }}</span>
         </div>
-        <div v-if="current.previousResult.comment" style="margin-top:4px">
-          <b>备注：</b><span style="white-space:pre-wrap">{{ current.previousResult.comment }}</span>
+        <div v-if="current.previousResult.comment" class="prev-result-line">
+          <b>备注：</b><span class="pre-wrap">{{ current.previousResult.comment }}</span>
         </div>
       </el-alert>
 
@@ -116,23 +116,24 @@
         </el-form-item>
       </el-form>
 
-      <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
+      <div class="exec-result-actions">
         <el-button type="success" @click="setResult('P', true)">P 并跳到下一条 →</el-button>
         <el-button type="success" plain @click="setResult('P')">Pass (P)</el-button>
         <el-button type="danger" @click="setResult('F')">Fail (F)</el-button>
         <el-button type="warning" @click="setResult('BLOCK')">Block (B)</el-button>
         <el-button @click="setResult('NP')">NP</el-button>
         <el-button @click="setResult('NT')">NT</el-button>
-        <div class="spacer" style="flex:1" />
+        <div class="spacer" />
         <el-button type="primary" link @click="next">下一条 →</el-button>
       </div>
 
       <el-divider />
-      <div style="display:flex;align-items:center;margin-bottom:6px">
-        <div style="font-weight: 600">关联缺陷</div>
-        <span style="color:#909399;font-size:12px;margin-left:8px">在 TB 提交后复制任务 URL 粘到草稿行的输入框里 → 点「关联」</span>
+      <div class="exec-subhead">
+        <div class="exec-subhead__title">关联缺陷</div>
+        <span class="exec-subhead__hint">在 TB 提交后复制任务 URL 粘到草稿行的输入框里 → 点「关联」</span>
       </div>
-      <el-table :data="defects" border size="small" empty-text="暂无缺陷">
+      <div class="data-table">
+      <el-table :data="defects" stripe size="small" empty-text="暂无缺陷">
         <el-table-column label="来源轮次" width="160">
           <template #default="{ row }">
             <el-tag v-if="row.isCurrentRound !== false" type="primary" size="small">本轮</el-tag>
@@ -167,7 +168,7 @@
         <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <template v-if="row.isCurrentRound === false">
-              <span style="color:#909399;font-size:12px">仅查看</span>
+              <span class="exec-tree-meta">仅查看</span>
             </template>
             <template v-else-if="row.tbTaskId === 'DRAFT'">
               <el-button
@@ -186,6 +187,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </div>
 
     <!-- 油猜脚本安装引导（F 时如未装则弹出） -->
@@ -380,6 +382,7 @@ import { ArrowLeft, Delete, EditPen } from '@element-plus/icons-vue';
 import QRCode from 'qrcode';
 import { defectApi, execApi, projectApi, roundApi, tbAuthApi, tbFillerApi, userApi } from '@/api';
 import { useModuleTreeDrag } from '@/composables/useModuleTreeDrag';
+import { compareCaseRowsBySetListOrder, sortExecTreeBranches } from '@/utils/caseDisplayOrder';
 
 const route = useRoute();
 const router = useRouter();
@@ -452,25 +455,17 @@ const filtered = computed(() =>
 
 const doneCount = computed(() => instances.value.filter((i) => i.result !== 'PENDING').length);
 
-function sortExecTreeBranches(nodes: any[]) {
-  nodes.sort((a, b) => {
-    if (!!a.isLeaf !== !!b.isLeaf) return a.isLeaf ? 1 : -1;
-    if (!a.isLeaf && !b.isLeaf) {
-      const d = (a.orderNo ?? 0) - (b.orderNo ?? 0);
-      if (d !== 0) return d;
-      return String(a.label || '').localeCompare(String(b.label || ''), 'zh-CN');
-    }
-    return String(a.code || '').localeCompare(String(b.code || ''), 'zh-CN');
-  });
-  for (const n of nodes) {
-    if (n.children?.length) sortExecTreeBranches(n.children);
-  }
-}
+/** 与用例集详情一致：按用例编号 code 升序（同后端 ORDER BY code ASC） */
+const orderedInstances = computed(() => {
+  const list = [...filtered.value];
+  list.sort((a, b) => compareCaseRowsBySetListOrder(a.case || {}, b.case || {}));
+  return list;
+});
 
 // 树：用例集 → 模块链 → 用例
 const tree = computed(() => {
   const bySet = new Map<number, any>();
-  for (const ins of filtered.value) {
+  for (const ins of orderedInstances.value) {
     const c = ins.case || {};
     const setId = c.caseSetId ?? -1;
     const setKey = `set-${setId}`;
@@ -525,6 +520,7 @@ const tree = computed(() => {
       instanceId: ins.id,
       label: c.title || `用例#${c.id}`,
       code: c.code,
+      moduleId: c.moduleId,
       result: ins.result,
       isLeaf: true,
     });
@@ -613,10 +609,13 @@ async function load(preserveInstanceId?: number) {
   instances.value = (await roundApi.cases(rid)) as any;
   await loadMembers();
   if (!instances.value.length) return;
+  const ordered = [...instances.value].sort((a, b) =>
+    compareCaseRowsBySetListOrder(a.case || {}, b.case || {}),
+  );
   const keep =
-    preserveInstanceId != null && instances.value.some((x) => x.id === preserveInstanceId)
+    preserveInstanceId != null && ordered.some((x) => x.id === preserveInstanceId)
       ? preserveInstanceId
-      : instances.value[0].id;
+      : ordered[0].id;
   const ins = instances.value.find((x) => x.id === keep)!;
   await select(ins);
 }
@@ -741,9 +740,10 @@ async function doOpenTbForF() {
   window.open(`${tbBugSectionUrl.value}${sep}tcmp_open=1&tcmp_origin=${ret}${did}${fillParam}`, '_blank');
 }
 function next() {
-  const idx = instances.value.findIndex((x) => x.id === currentId.value);
-  for (let i = idx + 1; i < instances.value.length; i++) {
-    if (instances.value[i].result === 'PENDING') return select(instances.value[i]);
+  const list = orderedInstances.value;
+  const idx = list.findIndex((x) => x.id === currentId.value);
+  for (let i = idx + 1; i < list.length; i++) {
+    if (list[i].result === 'PENDING') return select(list[i]);
   }
   ElMessage.success('已完成全部 PENDING 用例');
 }
@@ -1192,26 +1192,31 @@ async function onTbDefectMessage(evt: MessageEvent) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 12px 16px 0;
+  max-width: none;
 }
-.page-header {
-  display: flex;
-  align-items: center;
+.exec-page .page-header {
+  margin-bottom: 0;
+  padding: 0 4px;
 }
 .exec-layout {
   display: flex;
   gap: 12px;
-  height: calc(100vh - 150px);
+  height: calc(100vh - var(--tcmp-header-height) - 52px);
+  padding: 0;
 }
 .exec-tree {
   width: 280px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  padding: 10px;
-  background: #fafafa;
+  border: 1px solid var(--tcmp-border);
+  border-radius: var(--tcmp-radius);
+  padding: 12px;
+  background: var(--tcmp-page-bg);
+  box-shadow: var(--tcmp-shadow-sm);
 }
+.tree-filter { margin-bottom: 8px; }
 .exec-resizer {
   flex-shrink: 0;
   width: 6px;
@@ -1223,14 +1228,13 @@ async function onTbDefectMessage(evt: MessageEvent) {
   z-index: 2;
 }
 .exec-resizer:hover,
-.exec-resizer:active { background: #409eff; }
-.tree-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.exec-resizer:active { background: var(--tcmp-primary); }
 .result-filter { margin-bottom: 8px; }
 .tree-wrapper {
   flex: 1;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  background: var(--tcmp-card-bg);
+  border: 1px solid var(--tcmp-border);
+  border-radius: var(--tcmp-radius-sm);
   padding: 6px;
   overflow: auto;
 }
@@ -1241,7 +1245,54 @@ async function onTbDefectMessage(evt: MessageEvent) {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 0 4px;
+  padding: 16px 20px;
+  background: var(--tcmp-card-bg);
+  border: 1px solid var(--tcmp-border);
+  border-radius: var(--tcmp-radius);
+  box-shadow: var(--tcmp-shadow-sm);
+}
+.exec-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.exec-detail-title {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--tcmp-text-primary);
+}
+.case-field-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.prev-result-alert { margin-top: 10px; }
+.prev-result-title { font-weight: 600; }
+.prev-result-line { margin-top: 4px; }
+.pre-wrap { white-space: pre-wrap; }
+.exec-result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.exec-subhead {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.exec-subhead__title { font-weight: 600; }
+.exec-subhead__hint {
+  color: var(--tcmp-text-muted);
+  font-size: 12px;
 }
 .case-desc {
   width: 50%;
@@ -1258,10 +1309,10 @@ async function onTbDefectMessage(evt: MessageEvent) {
   gap: 6px;
   width: 100%;
 }
-.leaf-row.is-active { color: #409eff; font-weight: 500; }
-.leaf-code { color:#909399; font-size:12px; white-space:nowrap; }
+.leaf-row.is-active { color: var(--tcmp-primary); font-weight: 500; }
+.leaf-code { color: var(--tcmp-text-muted); font-size:12px; white-space:nowrap; }
 .leaf-title { flex:1; white-space:nowrap; }
-.branch-row { display: inline-flex; align-items: center; gap: 6px; width: 100%; color: #606266; white-space:nowrap; cursor: grab; }
+.branch-row { display: inline-flex; align-items: center; gap: 6px; width: 100%; color: var(--tcmp-text-secondary); white-space:nowrap; cursor: grab; }
 .branch-row:active { cursor: grabbing; }
 .branch-meta { margin-left: auto; font-size: 12px; display:flex; gap:4px; align-items:center; }
 .dot-p { color: #67c23a; }

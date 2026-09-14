@@ -4,11 +4,13 @@
 -->
 <template>
   <div class="page">
-    <div class="page-title">项目</div>
-    <div class="toolbar" style="display: flex; align-items: center; gap: 12px">
+    <div class="page-header">
+      <span class="page-header__title">项目</span>
+    </div>
+    <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建项目</el-button>
       <el-button @click="load">刷新</el-button>
-      <div class="spacer" style="flex: 1" />
+      <div class="spacer" />
       <el-radio-group v-model="viewMode" size="small">
         <el-radio-button label="card">卡片</el-radio-button>
         <el-radio-button label="list">列表</el-radio-button>
@@ -17,13 +19,13 @@
 
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" class="card-grid">
-      <el-card v-for="p in projects" :key="p.id" class="proj-card" shadow="hover" @click="enter(p)">
-        <div class="proj-card-head">
-          <span class="proj-name">{{ p.name }}</span>
+      <el-card v-for="p in projects" :key="p.id" class="list-card" shadow="hover" @click="enter(p)">
+        <div class="list-card-head">
+          <span class="list-card-name">{{ p.name }}</span>
           <el-tag v-if="p.isBuiltin" type="warning" size="small" effect="plain">内置</el-tag>
         </div>
-        <div class="proj-desc">{{ p.description || '暂无描述' }}</div>
-        <div class="proj-card-actions" @click.stop>
+        <div class="list-card-desc">{{ p.description || '暂无描述' }}</div>
+        <div class="list-card-actions" @click.stop>
           <el-button link type="primary" size="small" @click="enter(p)">进入</el-button>
           <el-button link type="primary" size="small" @click="enterBoard(p)">缺陷看板</el-button>
           <el-button link type="success" size="small" @click="openCreateChild(p)">新建子项目</el-button>
@@ -33,11 +35,12 @@
     </div>
 
     <!-- 列表视图 -->
-    <el-table v-else :data="projects" border>
+    <div v-else class="data-table">
+    <el-table :data="projects" stripe>
       <el-table-column prop="name" label="项目名称" min-width="220">
         <template #default="{ row }">
-          <span class="proj-name" @click="enter(row)">{{ row.name }}</span>
-          <el-tag v-if="row.isBuiltin" type="warning" size="small" effect="plain" style="margin-left:6px">内置</el-tag>
+          <span class="list-card-name" @click="enter(row)">{{ row.name }}</span>
+          <el-tag v-if="row.isBuiltin" type="warning" size="small" effect="plain" class="tag-inline">内置</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip />
@@ -50,8 +53,9 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
-    <el-empty v-if="!projects.length" description="暂无项目" />
+    <el-empty v-if="!projects.length" description="暂无项目" :image-size="96" />
 
     <el-dialog v-model="showCreate" :title="createTitle" width="520px">
       <el-form :model="form" label-width="120px">
@@ -144,45 +148,3 @@ async function onRemove(p: any) {
 onMounted(load);
 </script>
 
-<style scoped>
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
-}
-.proj-card {
-  border-radius: 8px;
-  cursor: pointer;
-}
-.proj-card-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.proj-name {
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-}
-.proj-name:hover {
-  color: var(--el-color-primary);
-}
-.proj-desc {
-  color: #606266;
-  font-size: 13px;
-  margin: 10px 0;
-  min-height: 38px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.proj-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-top: 1px solid #f0f0f0;
-  padding-top: 8px;
-}
-</style>

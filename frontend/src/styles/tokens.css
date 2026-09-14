@@ -1,0 +1,52 @@
+/**
+ * TCMP design tokens — single source for brand blue theme
+ */
+:root {
+  /* Brand */
+  --tcmp-brand-navy: #001529;
+  --tcmp-brand-slate: #252b36;
+  --tcmp-brand-slate-mid: #2c3340;
+  --tcmp-brand-accent-light: #7ec0ff;
+  --tcmp-brand-accent: #4a9eff;
+
+  /* Primary (actions, links, stats) */
+  --tcmp-primary: #1890ff;
+  --tcmp-primary-hover: #096dd9;
+  --tcmp-primary-light: #e6f4ff;
+
+  /* Surfaces */
+  --tcmp-page-bg: #f0f4f8;
+  --tcmp-card-bg: #ffffff;
+  --tcmp-border: #e4e9f0;
+  --tcmp-border-light: #eef1f6;
+  --tcmp-radius: 8px;
+  --tcmp-radius-sm: 6px;
+  --tcmp-shadow-sm: 0 1px 4px rgba(0, 21, 41, 0.06);
+  --tcmp-shadow-md: 0 4px 16px rgba(0, 21, 41, 0.08);
+
+  /* Text */
+  --tcmp-text-primary: #303133;
+  --tcmp-text-secondary: #606266;
+  --tcmp-text-muted: #909399;
+
+  /* Layout */
+  --tcmp-header-height: 60px;
+
+  /* Element Plus mapping */
+  --el-color-primary: var(--tcmp-primary);
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: var(--tcmp-primary-hover);
+  --el-border-radius-base: var(--tcmp-radius);
+  --el-border-radius-small: var(--tcmp-radius-sm);
+  --el-bg-color-page: var(--tcmp-page-bg);
+  --el-border-color: var(--tcmp-border);
+  --el-border-color-light: var(--tcmp-border-light);
+  --el-text-color-primary: var(--tcmp-text-primary);
+  --el-text-color-regular: var(--tcmp-text-secondary);
+  --el-text-color-secondary: var(--tcmp-text-muted);
+  --el-menu-horizontal-height: var(--tcmp-header-height);
+}

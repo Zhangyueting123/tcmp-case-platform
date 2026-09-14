@@ -5,7 +5,7 @@
 <template>
   <div class="page">
     <div class="page-title">
-      <el-button :icon="ArrowLeft" @click="goBack" style="margin-right:8px">返回</el-button>
+      <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
       {{ caseSet?.name }} <el-tag size="small">{{ caseSet?.code }}</el-tag>
     </div>
     <div class="toolbar">
@@ -27,7 +27,7 @@
 
     <el-row :gutter="12">
       <el-col :span="6">
-        <div class="card" style="max-height: 70vh; overflow: auto">
+        <div class="content-card content-card--scroll">
           <el-tree
             :data="displayModules"
             :props="{ label: 'name', children: 'children' }"
@@ -78,7 +78,8 @@
           <el-tag size="small">{{ filteredCases.length }} 条</el-tag>
           <el-button link type="primary" size="small" @click="onNode(null)">清除筛选</el-button>
         </div>
-        <el-table :data="pagedCases" border height="calc(70vh - 52px)">
+        <div class="data-table cases-table-wrap">
+        <el-table :data="pagedCases" stripe height="calc(70vh - 52px)">
           <el-table-column label="子模块" width="130">
             <template #default="{ row }"><div class="cell-wrap">{{ pathAt(row, 1) }}</div></template>
           </el-table-column>
@@ -119,8 +120,9 @@
           :page-sizes="[50, 100, 200, 500]"
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
-          style="margin-top: 8px; justify-content: flex-end"
+          class="cases-pagination"
         />
+        </div>
       </el-col>
     </el-row>
 
@@ -148,7 +150,8 @@
     <StartReviewDialog v-model="showStartReview" :case-set-id="id" :modules="modules" @saved="onReviewStarted" />
 
     <el-dialog v-model="showReviews" title="评审记录" width="720px">
-      <el-table :data="reviews" border v-loading="reviewsLoading">
+      <div class="data-table">
+      <el-table :data="reviews" stripe v-loading="reviewsLoading">
         <el-table-column label="标题" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" @click="goReview(row.id)">{{ row.title }}</el-link>
@@ -169,6 +172,7 @@
         </el-table-column>
         <template #empty>暂无评审记录</template>
       </el-table>
+      </div>
     </el-dialog>
 
     <el-dialog v-model="showImport" title="导入到项目用例池" width="560px" @closed="resetImport">
@@ -705,6 +709,13 @@ onMounted(load);
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+.cases-pagination {
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+.content-card--scroll {
+  margin-bottom: 0;
 }
 .cell-wrap {
   margin: 0;

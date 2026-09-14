@@ -6,10 +6,14 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
+import './styles/tokens.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import App from './App.vue';
 import router from './router';
 import './styles.css';
+import { PRODUCT_PAGE_TITLE } from './constants/product';
+
+document.title = PRODUCT_PAGE_TITLE;
 
 const app = createApp(App);
 app.use(createPinia());

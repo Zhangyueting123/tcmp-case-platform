@@ -11,7 +11,39 @@
 >
 > ⚠️ **sql.js 数据库坑**：本项目用 sql.js（纯内存 + 定时落盘），跑 seed / 任何直接读写 `data/tcmp.db` 的脚本前**必须先 `nssm stop TCMP-Backend`**，跑完再 `nssm start`。否则运行中的服务会用它自己的内存态覆盖脚本写入的数据（表现为"seed 明明跑成功了，接口查还是旧数据"）。
 
+## 2026-09-14
+
+### 产品名统一为「用例管理与执行平台」`需重建前端`
+- 变更：顶栏、登录页、浏览器标题与 PRD/README 一致；新增 `constants/product.ts` 集中维护 TCMP 与中文全称。
+- 涉及文件：`frontend/src/constants/product.ts`；`Layout.vue`；`AuthLayout.vue`；`index.html`；`main.ts`。
+- 部署动作：前端 build 后发布。
+- 验证：顶栏与 `/login` 标题均为「TCMP · 用例管理与执行平台」。
+
+### 安全：用户 system-roles / status 仅 SysAdmin 可改 `仅需重启后端`
+- 变更：新增 `RolesGuard`；`PATCH /users/:id/system-roles` 与 `PATCH /users/:id/status` 加 `@SysAdminOnly()`；`scripts/platform-smoke-test.mjs` 增加 tester 越权改角色应 403 断言。
+- 涉及文件：`common/guards/roles.guard.ts`；`common/decorators.ts`；`app.module.ts`；`modules/users/users.controller.ts`；`scripts/platform-smoke-test.mjs`。
+- 部署动作：后端 build 后重启服务。
+- 验证：`node scripts/platform-smoke-test.mjs http://localhost:3000` 安全项全 PASS。
+
+### 全站视觉：蓝色品牌主题与页面样式统一 `需重建前端`
+- 变更：新增设计令牌（`styles/tokens.css`）并映射 Element Plus 主色；扩展全局页面壳（`page-header`、`content-card`、`stat-tile`、`data-table` 等）；顶栏 TCMP 字标改为纯蓝渐变；登录/注册强调色与主应用统一为品牌蓝；工作台、项目/用例集列表与详情、执行页、轮次/报告、评审、缺陷看板、管理页一轮样式收敛（表格 stripe、卡片与间距统一）。
+- 涉及文件：`frontend/src/styles/tokens.css`；`frontend/src/styles.css`；`frontend/src/main.ts`；`frontend/src/views/Layout.vue`；`frontend/src/components/AuthLayout.vue`；各主要 `views/**` 页面。
+- 部署动作：前端 build 后 `deploy_dist_patch.py`。
+- 验证：本地 `npm run build` 通过；登录页、工作台、项目/用例集、执行、评审、缺陷看板、管理页走查 UI。
+
 ## 2026-09-11
+
+### 用例顺序：用例执行与用例集列表（code 升序）一致 `需重建前端` `已部署 151+127`
+- 变更：**用例集详情保持后端 `ORDER BY code ASC` 不变**；用例执行页用例行/下一条 PENDING 按 `code` 升序；**左侧模块树同级按 `orderNo` 排序**（与用例集模块树一致，修复按 code 插入导致的子模块乱序）。
+- 涉及文件：`utils/caseDisplayOrder.ts`；`Rounds/Execute.vue`（`Detail.vue` 已恢复为接口返回顺序）。
+- 部署动作：前端 build 后 `deploy_dist_patch.py`（2026-09-11 修正后重发）。
+- 验证：127/151 强刷后 `/case-sets/27` 表格 code 顺序与 `/projects/37/rounds/23/execute` 一致。
+
+### 登录 / 注册页分栏品牌布局 `需重建前端` `已部署 151+127`
+- 变更：登录、注册页统一左右分栏（左侧能力示意 + 右侧 Mech-Mind Logo 与平台说明）；Tab 切换登录/注册；共用 `AuthLayout.vue`；Logo 通栏浅灰背景（`#f5f7fa`～`#eef1f6`）。
+- 涉及文件：`components/AuthLayout.vue`；`views/Login.vue`；`views/Register.vue`。
+- 部署动作：前端 build 后 `deploy_dist_patch.py`（2026-09-11，含 Logo 区二次发布）。
+- 验证：127/151 首页 200；`/login`、`/register` 加载 `AuthLayout-*.css/js`。
 
 ### 模块树拖动排序/移动 `需重建前端` `仅需重启后端` `已部署 151+127`
 - 变更：用例集详情页、用例执行页左侧模块树支持**拖动**子模块/子功能/测试项（level 2～4）：同级 before/after 调整顺序（`orderNo`），或拖入上一级节点内变更归属（更新 `parentId` 与 `path`）。接口 `POST /case-sets/:id/modules/reposition`。

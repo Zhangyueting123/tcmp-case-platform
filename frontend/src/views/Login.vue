@@ -3,19 +3,35 @@
   @date 2026-06-10
 -->
 <template>
-  <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4c8bf5, #6f3df5)">
-    <el-card style="width: 380px">
-      <h2 style="text-align: center; margin-top: 0">TCMP 登录</h2>
-      <el-form :model="form" label-width="80px" @submit.prevent="onLogin">
-        <el-form-item label="邮箱"><el-input v-model="form.email" placeholder="请输入邮箱" /></el-form-item>
-        <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password placeholder="请输入密码" /></el-form-item>
-        <el-button type="primary" :loading="loading" style="width: 100%" @click="onLogin">登录</el-button>
-        <div style="display: flex; justify-content: space-between; margin-top: 12px">
-          <el-link type="primary" :underline="false" @click="openForgot">忘记密码？</el-link>
-          <RouterLink to="/register">没有账号？立即注册</RouterLink>
-        </div>
-      </el-form>
-    </el-card>
+  <AuthLayout active-tab="login">
+    <el-form class="auth-form" :model="form" @submit.prevent="onLogin">
+      <el-form-item>
+        <el-input v-model="form.email" size="large" placeholder="请输入邮箱" @keyup.enter="onLogin">
+          <template #prefix>
+            <el-icon><User /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item>
+        <el-input
+          v-model="form.password"
+          size="large"
+          type="password"
+          show-password
+          placeholder="请输入密码"
+          @keyup.enter="onLogin"
+        >
+          <template #prefix>
+            <el-icon><Lock /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-button class="auth-submit" size="large" :loading="loading" @click="onLogin">登录</el-button>
+      <div class="auth-footer">
+        <el-link type="info" :underline="false" @click="openForgot">忘记密码？</el-link>
+        <RouterLink class="auth-link" to="/register">没有账号？立即注册</RouterLink>
+      </div>
+    </el-form>
 
     <el-dialog v-model="forgotVisible" title="重置密码" width="440px" :close-on-click-modal="false">
       <el-form ref="forgotFormRef" :model="forgotForm" :rules="forgotRules" label-width="88px" @submit.prevent>
@@ -45,13 +61,15 @@
         <el-button type="primary" :loading="resetting" @click="onResetSubmit">确认重置</el-button>
       </template>
     </el-dialog>
-  </div>
+  </AuthLayout>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, reactive, ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { Lock, User } from '@element-plus/icons-vue';
+import AuthLayout from '@/components/AuthLayout.vue';
 import { authApi } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 
@@ -71,14 +89,13 @@ async function onLogin() {
   }
 }
 
-// ---- 忘记密码 ----
 const PWD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,64}$/;
 
 const forgotVisible = ref(false);
 const sending = ref(false);
 const resetting = ref(false);
 const sendCooldown = ref(0);
-let cooldownTimer: any = null;
+let cooldownTimer: ReturnType<typeof setInterval> | null = null;
 const forgotFormRef = ref<FormInstance>();
 const forgotForm = reactive({
   email: '',
@@ -138,7 +155,7 @@ async function onSendCode() {
     cooldownTimer = setInterval(() => {
       sendCooldown.value -= 1;
       if (sendCooldown.value <= 0) {
-        clearInterval(cooldownTimer);
+        if (cooldownTimer) clearInterval(cooldownTimer);
         cooldownTimer = null;
       }
     }, 1000);
@@ -160,7 +177,6 @@ async function onResetSubmit() {
     });
     ElMessage.success('密码已重置，请使用新密码登录');
     forgotVisible.value = false;
-    // 顺手把邮箱回填到登录框
     form.email = forgotForm.email;
     form.password = '';
   } finally {

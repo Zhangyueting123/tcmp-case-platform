@@ -3,13 +3,13 @@
   @date 2026-07-28
 -->
 <template>
-  <div class="page" style="padding: 16px">
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px">
+  <div class="page">
+    <div class="page-header review-header">
       <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
-      <span style="font-size: 18px; font-weight: 600">{{ review?.title }}</span>
+      <span class="page-header__title">{{ review?.title }}</span>
       <el-tag v-if="review" :type="statusType(review.status)" size="small">{{ statusText(review.status) }}</el-tag>
       <el-tag size="small" type="info">用例集：{{ review?.caseSetName }}</el-tag>
-      <div style="flex: 1" />
+      <div class="spacer" />
       <el-button v-if="review" :loading="exporting" @click="exportComments">导出评审意见</el-button>
       <el-radio-group v-model="viewMode" size="small" style="margin-right: 8px">
         <el-radio-button label="split">分栏</el-radio-button>
@@ -45,7 +45,7 @@
       >{{ myCompleted ? '✓ 已完成评审（点击撤销）' : '评审完成' }}</el-button>
     </div>
 
-    <div v-if="review" style="margin-bottom: 12px; color: #606266; font-size: 13px">
+    <div v-if="review" class="review-meta">
       发起人：{{ review.initiatorName }}　评审成员：
       <el-tag
         v-for="r in review.reviewers"
@@ -69,7 +69,7 @@
     </div>
 
     <!-- 整体意见 / 建议 -->
-    <div v-if="review" class="card overall-card">
+    <div v-if="review" class="content-card overall-card">
       <div class="overall-head">
         <el-icon><ChatLineSquare /></el-icon>
         <span>整体意见 / 建议</span>
@@ -108,10 +108,10 @@
 
     <el-row v-if="viewMode === 'split'" :gutter="12" v-loading="loading">
       <el-col :span="8">
-        <div class="card" style="max-height: 74vh; overflow: auto; padding: 0">
+        <div class="content-card content-card--flush content-card--scroll review-case-list">
           <el-table
             :data="pagedSplitCases"
-            border
+            stripe
             height="74vh"
             highlight-current-row
             @current-change="onSelect"
@@ -160,7 +160,7 @@
       </el-col>
 
       <el-col :span="16">
-        <div v-if="selectedCase" class="card" style="max-height: 74vh; overflow: auto">
+        <div v-if="selectedCase" class="content-card content-card--scroll">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px">
             <el-tag size="small">{{ selectedCase.code }}</el-tag>
             <span style="font-weight: 600">{{ selectedCase.title }}</span>
@@ -262,8 +262,7 @@
         <div
           v-for="c in pagedFlatCases"
           :key="c.id"
-          class="card"
-          style="margin-bottom: 12px"
+          class="content-card flat-case-card"
         >
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap">
             <el-tag size="small">{{ c.code }}</el-tag>
@@ -406,7 +405,7 @@
       </div>
       <el-table
         :data="filteredCandidates"
-        border
+        stripe
         height="50vh"
         v-loading="candLoading"
         @selection-change="(rows: any[]) => (candSelected = rows)"
@@ -858,11 +857,17 @@ onMounted(load);
 </script>
 
 <style scoped>
-.card {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  padding: 12px;
+.review-header {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.review-meta {
+  margin-bottom: 12px;
+  color: var(--tcmp-text-secondary);
+  font-size: 13px;
+}
+.review-case-list {
+  max-height: 74vh;
 }
 .cell-wrap {
   white-space: pre-wrap;
@@ -873,7 +878,7 @@ onMounted(load);
 .module-path {
   margin-top: 2px;
   font-size: 12px;
-  color: #909399;
+  color: var(--tcmp-text-muted);
   word-break: break-word;
 }
 .kv {
@@ -884,7 +889,7 @@ onMounted(load);
 }
 .kv-label {
   flex: 0 0 72px;
-  color: #909399;
+  color: var(--tcmp-text-muted);
   font-size: 13px;
 }
 .flat-comments-title {
@@ -911,6 +916,9 @@ onMounted(load);
 .overall-item:last-of-type {
   border-bottom: none;
 }
+.flat-case-card {
+  margin-bottom: 12px;
+}
 .opinion-cell {
   display: flex;
   flex-direction: column;
@@ -924,7 +932,7 @@ onMounted(load);
   word-break: break-word;
 }
 .opinion-line.resolved {
-  color: #909399;
+  color: var(--tcmp-text-muted);
   text-decoration: line-through;
 }
 .opinion-author {

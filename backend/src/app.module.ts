@@ -26,6 +26,7 @@ import { CollabModule } from './modules/collab/collab.module';
 import { PersistenceModule } from './modules/persistence/persistence.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
@@ -57,6 +58,9 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     TbFillerModule,
     CollabModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

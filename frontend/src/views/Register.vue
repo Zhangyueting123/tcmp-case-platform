@@ -3,35 +3,57 @@
   @date 2026-06-10
 -->
 <template>
-  <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5">
-    <el-card style="width: 460px">
-      <h2 style="text-align: center; margin-top: 0">注册新账号</h2>
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="邮箱" prop="email" required>
-          <el-input v-model="form.email" placeholder="name@mech-mind.net" />
-        </el-form-item>
-        <el-form-item label="姓名" prop="name" required>
-          <el-input v-model="form.name" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="phone" required>
-          <el-input v-model="form.phone" placeholder="用于钉钉群内 @ 执行人" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password" required>
-          <el-input v-model="form.password" type="password" show-password placeholder="≥8位 含字母+数字+特殊字符" />
-        </el-form-item>
-        <el-button type="primary" style="width: 100%" :loading="loading" @click="onSubmit">注册</el-button>
-        <div style="text-align: center; margin-top: 12px">
-          <RouterLink to="/login">已有账号？返回登录</RouterLink>
-        </div>
-      </el-form>
-    </el-card>
-  </div>
+  <AuthLayout active-tab="register" tall>
+    <el-form ref="formRef" class="auth-form" :model="form" :rules="rules" @submit.prevent="onSubmit">
+      <el-form-item prop="email">
+        <el-input v-model="form.email" size="large" placeholder="name@mech-mind.net">
+          <template #prefix>
+            <el-icon><Message /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item prop="name">
+        <el-input v-model="form.name" size="large" placeholder="请输入姓名">
+          <template #prefix>
+            <el-icon><User /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item prop="phone">
+        <el-input v-model="form.phone" size="large" placeholder="手机号（钉钉 @ 执行人）">
+          <template #prefix>
+            <el-icon><Iphone /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-form-item prop="password">
+        <el-input
+          v-model="form.password"
+          size="large"
+          type="password"
+          show-password
+          placeholder="≥8 位，含字母+数字+特殊字符"
+          @keyup.enter="onSubmit"
+        >
+          <template #prefix>
+            <el-icon><Lock /></el-icon>
+          </template>
+        </el-input>
+      </el-form-item>
+      <el-button class="auth-submit" size="large" :loading="loading" @click="onSubmit">注册</el-button>
+      <div class="auth-footer auth-footer--center">
+        <RouterLink class="auth-link" to="/login">已有账号？返回登录</RouterLink>
+      </div>
+    </el-form>
+  </AuthLayout>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { Iphone, Lock, Message, User } from '@element-plus/icons-vue';
+import AuthLayout from '@/components/AuthLayout.vue';
 import { authApi } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 
@@ -73,7 +95,7 @@ async function onSubmit() {
   if (!valid) return;
   loading.value = true;
   try {
-    const payload: any = {
+    const payload = {
       email: form.email,
       name: form.name,
       phone: form.phone.trim(),
@@ -92,3 +114,9 @@ async function onSubmit() {
   }
 }
 </script>
+
+<style>
+.auth-footer--center {
+  justify-content: center;
+}
+</style>

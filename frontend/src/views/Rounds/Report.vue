@@ -5,7 +5,7 @@
 <template>
   <div class="page">
     <div class="page-title">
-      <el-button :icon="ArrowLeft" @click="goBack" style="margin-right:8px">返回</el-button>
+      <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
       轮次报告：{{ data?.round?.name }}
       <el-button type="primary" link @click="exportExcel">导出 Excel</el-button>
     </div>
@@ -19,31 +19,34 @@
       <el-col :span="4"><el-card><Stat label="通过率" :value="`${(data.summary.passRate*100).toFixed(1)}%`" color="#4c8bf5" /></el-card></el-col>
     </el-row>
 
-    <el-card style="margin-top: 12px" v-if="data">
-      <div style="font-weight: 600; margin-bottom: 8px">模块测试充分性（绿≥90% / 黄≥30% / 红&lt;30%）</div>
-      <el-table :data="data.moduleCoverage" border>
+    <el-card class="content-card report-section" v-if="data">
+      <div class="report-section__title">模块测试充分性（绿≥90% / 黄≥30% / 红&lt;30%）</div>
+      <div class="data-table">
+      <el-table :data="data.moduleCoverage" stripe>
         <el-table-column prop="moduleName" label="模块" />
         <el-table-column prop="total" label="模块总用例" width="120" />
         <el-table-column label="本轮充分性" width="180">
           <template #default="{ row }">
-            <div :style="{ background: rateColor(row.thisRoundRate), padding: '4px 8px', borderRadius: '3px', display: 'inline-block', minWidth: '80px', textAlign: 'center' }">
+            <div class="rate-pill" :style="{ background: rateColor(row.thisRoundRate) }">
               {{ (row.thisRoundRate * 100).toFixed(1) }}%
             </div>
           </template>
         </el-table-column>
         <el-table-column label="截止本轮（含本轮）充分性" width="220">
           <template #default="{ row }">
-            <div :style="{ background: rateColor(row.cumulativeRate), padding: '4px 8px', borderRadius: '3px', display: 'inline-block', minWidth: '80px', textAlign: 'center' }">
+            <div class="rate-pill" :style="{ background: rateColor(row.cumulativeRate) }">
               {{ (row.cumulativeRate * 100).toFixed(1) }}%
             </div>
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
-    <el-card style="margin-top: 12px" v-if="data">
-      <div style="font-weight: 600; margin-bottom: 8px">人员维度</div>
-      <el-table :data="data.byUser" border>
+    <el-card class="content-card report-section" v-if="data">
+      <div class="report-section__title">人员维度</div>
+      <div class="data-table">
+      <el-table :data="data.byUser" stripe>
         <el-table-column prop="userName" label="执行人" />
         <el-table-column prop="total" label="分配" width="80" />
         <el-table-column prop="P" label="P" width="60" /><el-table-column prop="F" label="F" width="60" />
@@ -52,11 +55,13 @@
           <template #default="{ row }">{{ (row.passRate * 100).toFixed(1) }}%</template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
-    <el-card style="margin-top: 12px" v-if="data">
-      <div style="font-weight: 600; margin-bottom: 8px">缺陷汇总 ({{ data.defects.length }})</div>
-      <el-table :data="data.defects" border>
+    <el-card class="content-card report-section" v-if="data">
+      <div class="report-section__title">缺陷汇总 ({{ data.defects.length }})</div>
+      <div class="data-table">
+      <el-table :data="data.defects" stripe>
         <el-table-column type="index" label="#" width="50" />
         <el-table-column prop="title" label="标题" />
         <el-table-column prop="severity" label="严重" width="100" />
@@ -68,6 +73,7 @@
         </el-table-column>
         <el-table-column label="TB" width="120"><template #default="{ row }"><a :href="row.tbUrl" target="_blank">查看</a></template></el-table-column>
       </el-table>
+      </div>
     </el-card>
   </div>
 </template>

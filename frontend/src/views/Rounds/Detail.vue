@@ -5,10 +5,10 @@
 <template>
   <div class="page">
     <div class="page-title">
-      <el-button :icon="ArrowLeft" @click="goBack" style="margin-right:8px">返回</el-button>
+      <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
       {{ round?.name }}
       <el-tag :type="statusType(round?.status)" size="small">{{ round?.status }}</el-tag>
-      <span style="font-size: 14px; color: #909399; margin-left: 8px">版本 {{ round?.softwareVersion }}</span>
+      <span class="page-meta">版本 {{ round?.softwareVersion }}</span>
     </div>
     <div class="toolbar">
       <el-button v-if="canEdit" type="primary" @click="showFilter = true">用例筛选</el-button>
@@ -20,8 +20,8 @@
       <el-button v-if="round?.status === 'IN_PROGRESS'" type="danger" @click="onClose">关闭轮次</el-button>
       <el-button v-if="round?.status === 'PAUSED' || round?.status === 'DRAFT'" type="success" @click="onPublish">发布</el-button>
     </div>
-    <el-card>
-      <div style="display: flex; gap: 24px; flex-wrap: wrap">
+    <el-card class="content-card">
+      <div class="round-stats">
         <Stat label="总数" :value="stat.total" />
         <Stat label="Pass" :value="stat.P" color="#67c23a" />
         <Stat label="Fail" :value="stat.F" color="#f56c6c" />
@@ -33,7 +33,8 @@
         <Stat label="通过率" :value="`${(stat.pass*100).toFixed(1)}%`" color="#4c8bf5" />
       </div>
     </el-card>
-    <el-table :data="instances" border style="margin-top: 12px">
+    <div class="data-table" style="margin-top: 12px">
+    <el-table :data="instances" stripe>
       <el-table-column label="编号" width="120"><template #default="{ row }">{{ row.case?.code }}</template></el-table-column>
       <el-table-column label="标题"><template #default="{ row }">{{ row.case?.title }}</template></el-table-column>
       <el-table-column label="分配人" width="100" prop="assigneeUserId" />
@@ -42,6 +43,7 @@
       </el-table-column>
       <el-table-column label="实际结果" show-overflow-tooltip prop="actualResult" />
     </el-table>
+    </div>
 
     <RoundFilterDialog
       v-if="showFilter"

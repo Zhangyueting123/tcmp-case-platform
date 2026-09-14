@@ -4,11 +4,13 @@
 -->
 <template>
   <div class="page">
-    <div class="page-title">用例集</div>
-    <div class="toolbar" style="display: flex; align-items: center; gap: 12px">
+    <div class="page-header">
+      <span class="page-header__title">用例集</span>
+    </div>
+    <div class="toolbar">
       <el-button type="primary" @click="openCreateGroup">新建用例集项目</el-button>
       <el-button @click="load">刷新</el-button>
-      <div class="spacer" style="flex: 1" />
+      <div class="spacer" />
       <el-radio-group v-model="viewMode" size="small">
         <el-radio-button label="card">卡片</el-radio-button>
         <el-radio-button label="list">列表</el-radio-button>
@@ -17,12 +19,12 @@
 
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" class="card-grid">
-      <el-card v-for="g in groups" :key="g.id" class="grp-card" shadow="hover" @click="enter(g)">
-        <div class="grp-head">
-          <span class="grp-name">{{ g.name }}</span>
+      <el-card v-for="g in groups" :key="g.id" class="list-card" shadow="hover" @click="enter(g)">
+        <div class="list-card-head">
+          <span class="list-card-name">{{ g.name }}</span>
         </div>
-        <div class="grp-desc">{{ g.description || '暂无描述' }}</div>
-        <div class="grp-actions" @click.stop>
+        <div class="list-card-desc">{{ g.description || '暂无描述' }}</div>
+        <div class="list-card-actions" @click.stop>
           <el-button link type="primary" size="small" @click="enter(g)">进入</el-button>
           <el-button link type="primary" size="small" @click="openEditGroup(g)">编辑</el-button>
           <el-button link type="danger" size="small" @click="onRemoveGroup(g)">删除</el-button>
@@ -31,10 +33,11 @@
     </div>
 
     <!-- 列表视图 -->
-    <el-table v-else :data="groups" border>
+    <div v-else class="data-table">
+    <el-table :data="groups" stripe>
       <el-table-column prop="name" label="用例集项目" min-width="220">
         <template #default="{ row }">
-          <span class="grp-name" style="cursor:pointer" @click="enter(row)">{{ row.name }}</span>
+          <span class="list-card-name" @click="enter(row)">{{ row.name }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip />
@@ -46,8 +49,9 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
-    <el-empty v-if="!groups.length" description="暂无用例集项目，点上方按钮新建" />
+    <el-empty v-if="!groups.length" description="暂无用例集项目，点上方按钮新建" :image-size="96" />
 
     <el-dialog v-model="showGroup" :title="editingGroup ? '编辑用例集项目' : '新建用例集项目'" width="480px">
       <el-form :model="groupForm" label-width="80px">
@@ -124,41 +128,3 @@ async function onRemoveGroup(g: any) {
 onMounted(load);
 </script>
 
-<style scoped>
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
-}
-.grp-card {
-  border-radius: 8px;
-  cursor: pointer;
-}
-.grp-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.grp-name {
-  font-weight: 600;
-  font-size: 15px;
-}
-.grp-desc {
-  color: #606266;
-  font-size: 13px;
-  margin: 10px 0;
-  min-height: 38px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.grp-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  border-top: 1px solid #f0f0f0;
-  padding-top: 8px;
-}
-</style>

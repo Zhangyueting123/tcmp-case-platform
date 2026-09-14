@@ -5,7 +5,7 @@
 <template>
   <div class="page">
     <div class="page-title">
-      <el-button :icon="ArrowLeft" @click="goBack" style="margin-right:8px">返回</el-button>
+      <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
       {{ group?.name || '用例集项目' }}
     </div>
     <div class="toolbar">
@@ -31,9 +31,10 @@
         @clear="onKeywordInput"
       />
     </div>
+    <div class="data-table">
     <el-table
       :data="list"
-      border
+      stripe
       :default-sort="{ prop: 'lastUpdatedAt', order: 'descending' }"
       @selection-change="onSelectionChange"
     >
@@ -65,6 +66,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
     <el-empty
       v-if="!list.length"
       :description="keyword.trim() ? `没有名称包含「${keyword.trim()}」的用例集` : '该项目下暂无用例集，点上方按钮新建'"

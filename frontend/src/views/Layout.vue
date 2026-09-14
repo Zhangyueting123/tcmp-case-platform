@@ -3,21 +3,21 @@
   @date 2026-06-10
 -->
 <template>
-  <el-container style="height: 100vh">
+  <el-container class="app-shell">
     <el-header class="app-header">
       <div class="brand">
         <img :src="mechMindLogo" alt="Mech-Mind" class="brand-logo" />
         <div class="brand-text">
-          <span class="brand-name">TCMP</span>
+          <span class="brand-name">{{ productCode }}</span>
           <span class="brand-dot">·</span>
-          <span class="brand-subtitle">用例管理平台</span>
+          <span class="brand-subtitle">{{ productName }}</span>
         </div>
       </div>
       <el-menu
         class="app-nav"
         mode="horizontal"
         :default-active="activeMenu"
-        background-color="#001529"
+        :background-color="navBg"
         text-color="rgba(255,255,255,0.78)"
         active-text-color="#fff"
         @select="onMenu"
@@ -28,8 +28,8 @@
         <el-menu-item index="/my-reviews">我的评审</el-menu-item>
         <el-menu-item index="/admin" v-if="auth.isSysAdmin">管理</el-menu-item>
       </el-menu>
-      <el-dropdown style="margin-right: 24px" @command="onManual">
-        <span style="color: #fff; cursor: pointer">用户手册 ▾</span>
+      <el-dropdown class="header-dropdown header-dropdown--manual" @command="onManual">
+        <span class="header-action">用户手册 ▾</span>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="preview">在线预览</el-dropdown-item>
@@ -38,8 +38,8 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <el-dropdown @command="onCmd">
-        <span style="color: #fff; cursor: pointer">{{ auth.user?.name }} ▾</span>
+      <el-dropdown class="header-dropdown" @command="onCmd">
+        <span class="header-action">{{ auth.user?.name }} ▾</span>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="profile">个人设置</el-dropdown-item>
@@ -48,7 +48,7 @@
         </template>
       </el-dropdown>
     </el-header>
-    <el-main style="padding: 0; background: #f5f7fa; overflow: auto">
+    <el-main class="app-main">
       <RouterView />
     </el-main>
 
@@ -89,10 +89,15 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { authApi } from '@/api';
 import mechMindLogo from '@/assets/mech-mind-logo.png';
+import { PRODUCT_CODE, PRODUCT_NAME } from '@/constants/product';
+
+const productCode = PRODUCT_CODE;
+const productName = PRODUCT_NAME;
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const navBg = 'var(--tcmp-brand-navy)';
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/workbench')) return '/workbench';
@@ -219,8 +224,11 @@ async function submitProfile() {
 </script>
 
 <style scoped>
+.app-shell {
+  height: 100vh;
+}
 .app-header {
-  background: #001529;
+  background: var(--tcmp-brand-navy);
   color: #fff;
   display: flex;
   align-items: center;
@@ -252,7 +260,7 @@ async function submitProfile() {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  background: linear-gradient(135deg, #7ec0ff 0%, #b89cff 100%);
+  background: linear-gradient(135deg, var(--tcmp-brand-accent-light) 0%, var(--tcmp-brand-accent) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -264,10 +272,17 @@ async function submitProfile() {
   transform: translateY(-1px);
 }
 .brand-subtitle {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+@media (max-width: 1280px) {
+  .brand-subtitle {
+    font-size: 14px;
+    letter-spacing: 0.02em;
+  }
 }
 .app-nav {
   flex: 1;
@@ -292,7 +307,25 @@ async function submitProfile() {
   font-size: 17px;
   font-weight: 700;
   color: #fff !important;
-  border-bottom-color: #7ec0ff !important;
-  background-color: rgba(126, 192, 255, 0.1) !important;
+  border-bottom-color: var(--tcmp-primary) !important;
+  background-color: rgba(24, 144, 255, 0.12) !important;
+}
+.header-dropdown {
+  flex-shrink: 0;
+}
+.header-dropdown--manual {
+  margin-right: 16px;
+}
+.header-action {
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+.header-action:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 </style>

@@ -4,27 +4,40 @@
 -->
 <template>
   <div>
-    <el-row :gutter="12" v-if="data">
-      <el-col :span="6"><el-card><div style="text-align: center"><div style="font-size: 24px; font-weight: 600">{{ data.total }}</div><div style="color: #909399">缺陷总数</div></div></el-card></el-col>
-      <el-col :span="6"><el-card><div style="text-align: center"><div style="font-size: 24px; font-weight: 600; color: #f56c6c">{{ data.open }}</div><div style="color: #909399">未关闭</div></div></el-card></el-col>
-      <el-col :span="6"><el-card><div style="text-align: center"><div style="font-size: 24px; font-weight: 600; color: #67c23a">{{ data.closed }}</div><div style="color: #909399">已关闭</div></div></el-card></el-col>
-      <el-col :span="6"><el-card><div style="text-align: center"><div style="font-size: 24px; font-weight: 600">{{ data.newThisWeek }}</div><div style="color: #909399">本周新增</div></div></el-card></el-col>
+    <div class="stat-grid defect-stat-grid" v-if="data">
+      <div class="stat-tile">
+        <div class="stat-tile__num">{{ data.total }}</div>
+        <div class="stat-tile__label">缺陷总数</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile__num stat-tile__num--danger">{{ data.open }}</div>
+        <div class="stat-tile__label">未关闭</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile__num stat-tile__num--success">{{ data.closed }}</div>
+        <div class="stat-tile__label">已关闭</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile__num">{{ data.newThisWeek }}</div>
+        <div class="stat-tile__label">本周新增</div>
+      </div>
+    </div>
+
+    <el-row :gutter="12" class="report-section" v-if="data">
+      <el-col :span="8"><el-card class="content-card"><div ref="chartSeverity" class="chart-box" /></el-card></el-col>
+      <el-col :span="8"><el-card class="content-card"><div ref="chartStatus" class="chart-box" /></el-card></el-col>
+      <el-col :span="8"><el-card class="content-card"><div ref="chartAging" class="chart-box" /></el-card></el-col>
     </el-row>
 
-    <el-row :gutter="12" style="margin-top: 12px" v-if="data">
-      <el-col :span="8"><el-card><div ref="chartSeverity" style="height: 240px" /></el-card></el-col>
-      <el-col :span="8"><el-card><div ref="chartStatus" style="height: 240px" /></el-card></el-col>
-      <el-col :span="8"><el-card><div ref="chartAging" style="height: 240px" /></el-card></el-col>
-    </el-row>
-
-    <el-card style="margin-top: 12px" v-if="data">
-      <div style="font-weight: 600; margin-bottom: 8px">近 30 天新增趋势</div>
-      <div ref="chartTrend" style="height: 220px" />
+    <el-card class="content-card report-section" v-if="data">
+      <div class="report-section__title">近 30 天新增趋势</div>
+      <div ref="chartTrend" class="chart-box chart-box--trend" />
     </el-card>
 
-    <el-card style="margin-top: 12px">
-      <div style="font-weight: 600; margin-bottom: 8px">缺陷列表</div>
-      <el-table :data="list" border>
+    <el-card class="content-card report-section">
+      <div class="report-section__title">缺陷列表</div>
+      <div class="data-table">
+      <el-table :data="list" stripe>
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="title" label="标题" />
         <el-table-column prop="severity" label="严重" width="100" />
@@ -43,6 +56,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-card>
 
     <el-dialog v-model="attachVisible" title="关联 Teambition 任务" width="520px">

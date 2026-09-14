@@ -5,7 +5,7 @@
 <template>
   <div class="page">
     <div class="page-title">
-      <el-button :icon="ArrowLeft" @click="goBack" style="margin-right:8px">返回</el-button>
+      <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
       {{ project?.name }} <el-tag size="small">{{ project?.projectKey }}</el-tag>
     </div>
     <el-tabs v-model="tab">
@@ -14,8 +14,8 @@
           <el-button type="primary" @click="showCreateChild = true">
             新建{{ (project?.level || 1) === 1 ? '子项目' : '模块功能测试项目' }}
           </el-button>
-          <span style="color: #909399">共 {{ children.length }} 个</span>
-          <div style="flex: 1" />
+          <span class="toolbar-meta">共 {{ children.length }} 个</span>
+          <div class="spacer" />
           <el-radio-group v-model="childViewMode" size="small">
             <el-radio-button label="card">卡片</el-radio-button>
             <el-radio-button label="list">列表</el-radio-button>
@@ -42,7 +42,8 @@
           </el-card>
         </div>
 
-        <el-table v-else :data="children" border>
+        <div v-else class="data-table">
+        <el-table :data="children" stripe>
           <el-table-column prop="name" label="名称" min-width="220" />
           <el-table-column label="层级" width="180"><template #default="{ row }">{{ levelName(row.level) }}</template></el-table-column>
           <el-table-column label="操作" width="180">
@@ -52,16 +53,18 @@
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!children.length" description="暂无子级，点上方按钮新建" />
+        </div>
+        <el-empty v-if="!children.length" description="暂无子级，点上方按钮新建" :image-size="96" />
       </el-tab-pane>
 
       <el-tab-pane v-if="(project?.level || 1) === 3" label="用例池" name="cases">
         <div class="toolbar">
           <el-button type="primary" @click="showAdd = true">从用例集添加</el-button>
           <el-button type="danger" plain :disabled="!cases.length" @click="onClearAll">全部删除</el-button>
-          <span style="color: #909399">共 {{ cases.length }} 条</span>
+          <span class="toolbar-meta">共 {{ cases.length }} 条</span>
         </div>
-        <el-table :data="cases" border>
+        <div class="data-table">
+        <el-table :data="cases" stripe>
           <el-table-column label="编号" width="120"><template #default="{ row }">{{ row.case?.code }}</template></el-table-column>
           <el-table-column label="标题"><template #default="{ row }">{{ row.case?.title }}</template></el-table-column>
           <el-table-column label="等级" width="80"><template #default="{ row }">{{ row.case?.priority }}</template></el-table-column>
@@ -72,11 +75,13 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </el-tab-pane>
 
       <el-tab-pane v-if="(project?.level || 1) === 3" label="测试轮次" name="rounds">
         <div class="toolbar"><el-button type="primary" @click="showCreate = true">新建轮次</el-button></div>
-        <el-table :data="rounds" border>
+        <div class="data-table">
+        <el-table :data="rounds" stripe>
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="轮次名" min-width="160">
             <template #default="{ row }">
@@ -111,11 +116,13 @@
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </el-tab-pane>
 
       <el-tab-pane v-if="(project?.level || 1) === 1" label="成员" name="members">
         <div class="toolbar"><el-button type="primary" @click="showAddMember = true">添加成员</el-button></div>
-        <el-table :data="members" border>
+        <div class="data-table">
+        <el-table :data="members" stripe>
           <el-table-column prop="userId" label="用户 ID" width="100" />
           <el-table-column label="姓名"><template #default="{ row }">{{ userMap[row.userId]?.name }}</template></el-table-column>
           <el-table-column label="邮箱"><template #default="{ row }">{{ userMap[row.userId]?.email }}</template></el-table-column>
@@ -124,6 +131,7 @@
             <template #default="{ row }"><el-button link type="danger" @click="removeMember(row.id)">移除</el-button></template>
           </el-table-column>
         </el-table>
+        </div>
       </el-tab-pane>
 
       <el-tab-pane label="缺陷看板" name="defects">
